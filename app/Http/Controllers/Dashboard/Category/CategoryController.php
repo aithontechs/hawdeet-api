@@ -33,7 +33,7 @@ class CategoryController extends Controller
 
     public function show(Category $category)
     {
-        $category->load('childrenRecursive', 'parent');
+        $category->load(['childrenRecursive', 'parent']);
         return $this->successApi($category, 'Category fetched successfully');
     }
 

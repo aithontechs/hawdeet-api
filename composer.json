@@ -11,6 +11,9 @@
         "laravel/sanctum": "^3.2",
         "laravel/socialite": "^5.26",
         "laravel/tinker": "^2.8",
+        "predis/predis": "^3.4",
+        "setasign/fpdf": "^1.8",
+        "setasign/fpdi": "^2.6",
         "tymon/jwt-auth": "^2.3"
     },
     "require-dev": {
