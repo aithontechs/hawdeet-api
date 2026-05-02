@@ -4,7 +4,7 @@ namespace App\Policies;
 
 use App\Models\User;
 
-class BookPolicy
+class BookPolicy extends ModelPolicy
 {
     /**
      * Create a new policy instance.

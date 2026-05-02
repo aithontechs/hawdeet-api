@@ -4,6 +4,8 @@ use App\Http\Controllers\Dashboard\Auth\{AuthController ,ForgotPasswordControlle
 use App\Http\Controllers\Dashboard\Authorization\{PermissionController , RoleController };
 use App\Http\Controllers\Dashboard\Book\BookController;
 use App\Http\Controllers\Dashboard\Category\CategoryController;
+use App\Http\Controllers\Dashboard\Coupon\CouponController;
+use App\Http\Controllers\Dashboard\Order\OrderController;
 use App\Http\Controllers\Dashboard\Subscription\{SubscriptionPlanController , UserSubscriptionController };
 use App\Http\Controllers\Dashboard\User\UserController;
 use Illuminate\Support\Facades\Route;
@@ -42,6 +44,11 @@ Route::group(['prefix'=> 'v1/admin'], function () {
         Route::patch('user-subscriptions/{user_subscriptions}/activate' , [UserSubscriptionController::class , 'activate']) ;
 
 
+        // ===== Order ======
+        Route::apiResource('orders' , OrderController::class) ;
+
+        // ===== Coupons =====
+        Route::apiResource('coupons' , CouponController::class) ;
 
 
 

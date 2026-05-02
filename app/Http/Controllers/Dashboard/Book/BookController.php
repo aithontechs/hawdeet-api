@@ -16,7 +16,9 @@ class BookController extends Controller
 {
     use ResponseApi ;
 
-    public function __construct(private readonly BookService $bookService) {}
+    public function __construct(private readonly BookService $bookService) {
+        // $this->authorizeResource(Book::class, 'book');
+    }
 
 
     public function index(Request $request)

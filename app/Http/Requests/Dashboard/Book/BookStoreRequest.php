@@ -31,6 +31,7 @@ class BookStoreRequest extends FormRequest
             'category_ids.*' => ['integer', 'exists:categories,id'],
             'preview_start_page' => ['required' , 'numeric' , 'min:0'],
             'preview_end_page' => ['required' , 'numeric' , 'min:1'],
+            'is_subscription_included' => ['nullable' , 'boolean']
         ];
     }
 

@@ -33,6 +33,7 @@ class BookUpdateRequest extends FormRequest
             'category_ids.*' => ['integer', 'exists:categories,id'],
             'preview_start_page' => ['required_with:file' , 'numeric' , 'min:0'],
             'preview_end_page' => ['required_with:file' , 'numeric' , 'min:1'],
+            'is_subscription_included' => ['nullable' , 'boolean']
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Storage;
@@ -27,7 +28,8 @@ class Book extends Model
         'published',
         'published_at',
         'uploaded_by',
-        'author_id'
+        'author_id',
+        'is_subscription_included',
     ];
 
     protected $casts = [
@@ -43,8 +45,9 @@ class Book extends Model
     ];
 
     protected $hidden = ['file', 'preview' , 'cover'];
+    protected $appends = ['cover_url'] ;
 
-    // scope filters
+    // scope filters in dashboard
     public function scopeFilter($query, $filters)
     {
         return $query
@@ -70,6 +73,21 @@ class Book extends Model
             });
     }
 
+    // scope search in app
+    public function scopeSearch(Builder $query, $filters)
+    {
+        return $query->when($filters['search'] ?? null, function ($q, $search) {
+                $q->where('title', 'like', "%{$search}%");
+            })
+            ->when($filters['sort'] ?? null, function ($q, $sort) {
+                if ($sort === 'price_asc') {
+                    $q->orderBy('price', 'asc');
+                } elseif ($sort === 'price_desc') {
+                    $q->orderBy('price', 'desc');
+                }
+            });
+    }
+
     public function scopeWithRelations($query)
     {
         return $query->with(['categories','uploader:id,name','author:id,name']);
@@ -91,6 +109,16 @@ class Book extends Model
         return $this->belongsTo(User::class, 'author_id');
     }
 
+    public function userBooks()
+    {
+        return $this->hasMany(UserBook::class);
+    }
+
+    public function orderItems()
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
 
 
     // storage accessors
@@ -104,4 +132,14 @@ class Book extends Model
     {
         return $this->file ? Storage::disk('private')->temporaryUrl($this->file, now()->addMinutes(30)) : null;
     }
+
+
+    public function isAccessibleByUser(int $userId): bool
+    {
+        return $this->userBooks()
+            ->where('user_id', $userId)
+            ->active()
+            ->exists();
+    }
+
 }

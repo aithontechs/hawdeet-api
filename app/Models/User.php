@@ -4,7 +4,6 @@ namespace App\Models;
 
 use App\Notifications\VerifyEmailNotification;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -39,10 +38,6 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
         'password' => 'hashed'
     ];
 
-    // public function filterScope(Builder $builder)
-    // {
-
-    // }
 
     public function scopeSearch($query, $value)
     {
@@ -67,6 +62,45 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
 
         return $query;
     }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function userBooks()
+    {
+        return $this->hasMany(UserBook::class);
+    }
+
+    public function subscriptions()
+    {
+        return $this->hasMany(UserSubscription::class);
+    }
+
+
+    public function activeSubscription(): ?UserSubscription
+    {
+        return $this->subscriptions()
+                        ->where('status', 'active')
+                        ->where('end_at', '>', now())
+                        ->latest()
+                        ->first();
+    }
+
+    public function hasActiveSubscription(): bool
+    {
+        return !is_null($this->activeSubscription());
+    }
+
+    public function hasAccessToBook(int $bookId): bool
+    {
+        return $this->userBooks()
+            ->where('book_id', $bookId)
+            ->active()
+            ->exists();
+    }
+
 
 
     public function getJWTIdentifier()
