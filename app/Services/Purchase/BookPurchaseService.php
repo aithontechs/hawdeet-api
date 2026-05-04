@@ -13,21 +13,18 @@ class BookPurchaseService
 {
     public function __construct(){}
 
-    public function purchase(User $user, array $bookIds): Order
+    public function purchase(User $user, array $bookIds ,  $finalTotal , $discount , $totalBefore): Order
     {
-        return DB::transaction(function () use ($user, $bookIds) {
+        return DB::transaction(function () use ($user, $bookIds ,  $finalTotal , $discount , $totalBefore) {
 
             $books = $this->validateBooks($user, $bookIds);
-
-            $subtotal = $books->sum('price');
-            $total    = $subtotal;
 
             $order = Order::create([
                 'user_id'        => $user->id,
                 'order_number'   => Order::generateOrderNumber(),
-                'subtotal'       => $subtotal,
-                'discount'       => 0,
-                'total'          => $total,
+                'subtotal'       => $totalBefore,
+                'discount'       => $discount,
+                'total'          => $finalTotal,
             ]);
 
             foreach ($books as $book) {

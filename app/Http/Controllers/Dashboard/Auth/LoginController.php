@@ -29,7 +29,7 @@ class LoginController extends Controller
         return [
             'access_token' => $token,
             'token_type' => 'bearer',
-            'expires_in' => auth('admin-api')->factory()->getTTL() * 60,
+            'expires_in' => auth('admin-api')->factory()->getTTL() * 120,
             'admin'         => auth('admin-api')->user()
         ];
     }

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Dashboard\Coupon;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dashboard\Coupon\CouponStoreRequest;
 use App\Http\Requests\Dashboard\Coupon\CouponUpdateRequest;
+use App\Http\Resources\CouponResource;
+use App\Http\Resources\CouponUsageResource;
 use App\Models\Coupon;
 use App\Traits\ResponseApi;
 
@@ -33,8 +35,14 @@ class CouponController extends Controller
 
     public function show(Coupon $coupon)
     {
-        // $coupon->load('coupon_usages') ;
-        // return $this->successApi($coupon ,'Coupon fetched successfully') ;
+        $usages = $coupon->coupon_usages()
+            ->with(['user:id,name', 'order:id,order_number'])
+            ->paginate(15);
+
+        return $this->successApi([
+            'coupon' => new CouponResource($coupon),
+            'usages' => CouponUsageResource::collection($usages),
+        ], 'Coupon with usages fetched successfully');
     }
 
     function update(CouponUpdateRequest $request, Coupon $coupon)

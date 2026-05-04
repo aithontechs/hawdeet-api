@@ -7,6 +7,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\HasApiTokens;
 use Tymon\JWTAuth\Contracts\JWTSubject;
 
@@ -102,6 +103,22 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
     }
 
 
+
+    public function getAvatarUrlAttribute()
+    {
+        if (!$this->attributes['avatar_url']) {
+            return null;
+        }
+
+        $avatar = $this->attributes['avatar_url'];
+
+        if (filter_var($avatar, FILTER_VALIDATE_URL)) {
+            return $avatar;
+        }
+
+        // لو path (local storage)
+        return Storage::disk('public')->url($avatar);
+    }
 
     public function getJWTIdentifier()
     {

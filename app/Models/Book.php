@@ -119,6 +119,16 @@ class Book extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function reviews()
+    {
+        return $this->hasMany(BookReview::class);
+    }
+
+    public function hasReviewBy(int $userId): bool
+    {
+        return $this->reviews()->where('user_id', $userId)->exists();
+    }
+
 
 
     // storage accessors

@@ -3,6 +3,8 @@
 use App\Http\Controllers\Application\Auth\{LoginController , LogoutController, RegisterController , ResetPasswordController, SocialiteController, VerificationController};
 use App\Http\Controllers\Application\Auth\ForgotPasswordController;
 use App\Http\Controllers\Application\Book\BookController;
+use App\Http\Controllers\Application\Book\BookReaderController;
+use App\Http\Controllers\Application\Book\BookReviewController;
 use App\Http\Controllers\Application\Cart\CartController;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
@@ -29,10 +31,21 @@ Route::group(['prefix'=> 'v1'] , function () {
     Route::get('categories/{category}/books' , [BookController::class , 'booksByCategory']);
 
 
-    // Carts
+    // Carts & Checkout
     Route::apiResource('carts' , CartController::class)->except(['update' , 'show']);
-    Route::post('carts/checkout' , [CartController::class , 'checkout'])->middleware('auth:user-api') ;
+    Route::middleware(['auth:user-api' , 'verified'])->group(function () {
+        Route::post('carts/checkout' , [CartController::class , 'checkout']);
+        Route::post('carts/apply-coupon' , [CartController::class , 'applyCoupon']);
 
+        // access book
+        Route::get('books/{book}/read/page/{page}' , [BookReaderController::class , 'page']);
+        Route::get('books/{book}/preview/page/{page}', [BookReaderController::class, 'preview']);
+
+        // Review Book
+        Route::apiResource('books/{book}/reviews', BookReviewController::class)->except('show');
+
+
+    });
 
 
 }) ;

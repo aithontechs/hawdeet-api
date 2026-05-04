@@ -35,8 +35,8 @@ class UserBook extends Model
     public function scopeActive(Builder $query)
     {
         return $query->where(function ($q) {
-            $q->whereNull('expires_at')
-              ->orWhere('expires_at', '>', now());
+                $q->whereNull('expires_at')
+                    ->orWhere('expires_at', '>', now());
         });
     }
 
