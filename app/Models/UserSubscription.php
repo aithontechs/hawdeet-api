@@ -47,6 +47,11 @@ class UserSubscription extends Model
         return $this->belongsTo(SubscriptionPlan::class, 'plan_id');
     }
 
+    public function payment()
+    {
+        return $this->hasOne(Payment::class);
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active' && $this->end_at->isFuture();

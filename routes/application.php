@@ -3,9 +3,15 @@
 use App\Http\Controllers\Application\Auth\{LoginController , LogoutController, RegisterController , ResetPasswordController, SocialiteController, VerificationController};
 use App\Http\Controllers\Application\Auth\ForgotPasswordController;
 use App\Http\Controllers\Application\Book\BookController;
+use App\Http\Controllers\Application\Book\BookHighlightController;
 use App\Http\Controllers\Application\Book\BookReaderController;
+use App\Http\Controllers\Application\Book\BookReadingProgressController;
 use App\Http\Controllers\Application\Book\BookReviewController;
 use App\Http\Controllers\Application\Cart\CartController;
+use App\Http\Controllers\Application\Community\PostController;
+use App\Http\Controllers\Application\Payment\PaymentController;
+use App\Http\Controllers\Application\Subscription\SubscriptionController;
+use App\Http\Controllers\Application\User\UserController;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 
@@ -31,23 +37,48 @@ Route::group(['prefix'=> 'v1'] , function () {
     Route::get('categories/{category}/books' , [BookController::class , 'booksByCategory']);
 
 
+    //Guest
     // Carts & Checkout
     Route::apiResource('carts' , CartController::class)->except(['update' , 'show']);
+    Route::get('subscription-plans' , [SubscriptionController::class , 'index']) ;
+    Route::get('books/{book}/preview/page/{page}', [BookReaderController::class, 'preview']);
+
+
+    // Auth
     Route::middleware(['auth:user-api' , 'verified'])->group(function () {
         Route::post('carts/checkout' , [CartController::class , 'checkout']);
         Route::post('carts/apply-coupon' , [CartController::class , 'applyCoupon']);
 
         // access book
         Route::get('books/{book}/read/page/{page}' , [BookReaderController::class , 'page']);
-        Route::get('books/{book}/preview/page/{page}', [BookReaderController::class, 'preview']);
 
         // Review Book
         Route::apiResource('books/{book}/reviews', BookReviewController::class)->except('show');
 
+        // Hightlight
+        Route::apiResource('books/{book}/read/highlights' , BookHighlightController::class)->only('store' , 'destroy') ;
 
+        // Reading Progress
+        Route::put('books/{book}/progress' , [BookReadingProgressController::class , 'update']) ;
+        Route::get('books/{book}/progress' , [BookReadingProgressController::class , 'show']) ;
+
+        // Subscription
+        Route::post('subscription-plans' , [SubscriptionController::class , 'store']);
+        Route::post('subscription-plans/renew',  [SubscriptionController::class, 'renew']);
+
+        Route::get('payment/{payment}' , [PaymentController::class , 'pay'])->name('payment.pay') ; // test only
+
+        // Community ( Posts / Likes / Comments / Share )
+        Route::apiResource('posts' , PostController::class) ;
+
+
+        Route::prefix('user')->group(function () {
+            Route::get('/profile', [UserController::class ,'profile']) ;
+            Route::put('/profile', [UserController::class ,'updateProfile']) ;
+
+        });
+        // Route::get('user/library', [BookReadingProgressController::class, 'library']);
     });
-
-
 }) ;
 
 

@@ -7,16 +7,22 @@ use App\Services\Book\UserBookService;
 
 class BookAccessPolicy
 {
-
     public function __construct(private readonly UserBookService $userBookService) {}
 
-    public function access(User $user, Book $book)
+    public function access(User $user, Book $book): bool
     {
         if ($book->is_free) {
             return true;
         }
 
-        $bookIds = $this->userBookService->getUserBookIds($user);
-        return in_array($book->id, $bookIds);
+        if (in_array($book->id, $this->userBookService->getUserBookIds($user))) {
+            return true;
+        }
+
+        if ($book->is_subscription_included && $this->userBookService->hasActiveSubscription($user)) {
+            return true;
+        }
+
+        return false;
     }
 }

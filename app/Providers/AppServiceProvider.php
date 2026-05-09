@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Models\BookReview;
+use App\Models\UserSubscription;
 use App\Observers\BookReviewObserver;
+use App\Observers\UserSubscriptionObserver;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -22,5 +24,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         BookReview::observe(BookReviewObserver::class);
+        UserSubscription::observe(UserSubscriptionObserver::class);
     }
 }

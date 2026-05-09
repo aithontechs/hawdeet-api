@@ -45,4 +45,46 @@ class Handler extends ExceptionHandler
             //
         });
     }
+
+
+    public function render($request, Throwable $e)
+    {
+        if ($request->expectsJson()) {
+
+            // Model Not Found
+            if ($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Resource not found',
+                ], 404);
+            }
+
+            // Authorization
+            if ($e instanceof \Illuminate\Auth\Access\AuthorizationException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized',
+                ], 403);
+            }
+
+            // Http Exception (abort)
+            if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage() ?: 'Error',
+                ], $e->getStatusCode());
+            }
+
+            // Validation
+            if ($e instanceof \Illuminate\Validation\ValidationException) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation error',
+                    'errors'  => $e->errors(),
+                ], 422);
+            }
+        }
+
+        return parent::render($request, $e);
+    }
 }

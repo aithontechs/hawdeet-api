@@ -23,4 +23,12 @@ class SubscriptionPlan extends Model
         'compare_price'=> 'decimal:2',
         'is_active' => 'boolean'
     ] ;
+
+    public $hidden = ['created_at' , 'updated_at'];
+
+
+    public function scopeActive()
+    {
+        return $this->where('is_active', true) ;
+    }
 }

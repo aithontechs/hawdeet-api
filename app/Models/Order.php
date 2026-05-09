@@ -57,6 +57,11 @@ class Order extends Model
         return $this->status === 'paid';
     }
 
+    public function payment()
+    {
+        return $this->hasOne(Payment::class);
+    }
+
     public static function generateOrderNumber()
     {
         $year  = now()->format('Y');
