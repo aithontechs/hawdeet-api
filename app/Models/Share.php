@@ -9,15 +9,15 @@ class Share extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['post_id', 'user_id'];
+    protected $fillable = ['post_id', 'sharer_type', 'sharer_id'];
 
     public function post()
     {
-        return $this->belongsTo(Post::class, 'post_id');
+        return $this->belongsTo(Post::class);
     }
 
-    public function user()
+    public function sharer()
     {
-        return $this->belongsTo(User::class);
+        return $this->morphTo();
     }
 }

@@ -78,8 +78,11 @@ class PostService
 
     public function deletePost(Post $post): void
     {
-        if ($post->media_url) {
-            $this->storage->delete($post->media_url, StorageService::DISK_PUBLIC);
+        $mediaPath = $post->getRawOriginal('media_url');
+
+
+        if ($mediaPath) {
+            $this->storage->delete($mediaPath, StorageService::DISK_PUBLIC);
         }
 
         $post->delete();

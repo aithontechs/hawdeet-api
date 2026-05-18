@@ -14,9 +14,9 @@ return new class extends Migration
         Schema::create('shares', function (Blueprint $table) {
             $table->id();
             $table->foreignId('post_id')->constrained('posts')->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->morphs('sharer');
             $table->timestamps();
-            $table->unique(['post_id', 'user_id']);
+            $table->unique(['post_id', 'sharer_type', 'sharer_id']); 
         });
     }
 

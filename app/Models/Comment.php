@@ -9,12 +9,14 @@ class Comment extends Model
 {
     use HasFactory;
 
-        const MAX_DEPTH = 2;
+    const MAX_DEPTH = 2;
 
     protected $fillable = [
-        'post_id', 'parent_id', 'body', 'depth',
+        'post_id', 'parent_id','commentable_type' , 'commentable_id', 'body', 'depth',
         'likes_count', 'replies_count',
     ];
+
+    public $hidden = ['commentable_id' , 'commentable_type'];
 
     public function commentable()
     {
@@ -31,6 +33,16 @@ class Comment extends Model
         return $this->belongsTo(Comment::class, 'parent_id');
     }
 
+    public function latestReplies()
+    {
+        return $this->hasMany(Comment::class, 'parent_id')
+                    ->with('commentable:id,name,avatar_url')
+                    ->orderBy('created_at')
+                    ->limit(2);
+    }
+
+
+
     public function replies()
     {
         return $this->hasMany(Comment::class, 'parent_id')
@@ -45,5 +57,11 @@ class Comment extends Model
     public function canReply(): bool
     {
         return $this->depth < self::MAX_DEPTH;
+    }
+
+    public function isOwnedBy(User|Admin $actor): bool
+    {
+        return $this->commentable_type === get_class($actor)
+            && $this->commentable_id === $actor->id;
     }
 }

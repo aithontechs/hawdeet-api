@@ -32,6 +32,14 @@ class BookService
             $data['slug']        = $data['slug'] ?? Str::slug($data['title']);
             $data['uploaded_by'] = auth()->id();
 
+            $pdfPath = Storage::disk(StorageService::DISK_PRIVATE)->path($data['file']);
+
+            $pdf = new Fpdi();
+            $data['total_pages'] = $pdf->setSourceFile($pdfPath);
+            if ($data['preview_end_page'] > $data['total_pages']) {
+                abort(422, 'Preview end page exceeds total pages.');
+            }
+
             $categoryIds = $data['category_ids'] ?? [];
             unset($data['category_ids']);
 
@@ -180,7 +188,6 @@ class BookService
         return $this->storage->upload($file, self::FILE_FOLDER, StorageService::DISK_PRIVATE);
     }
 
-    // دي هنستخدمها مع queue
     public function createFromPaths(array $data, string $coverPath, string $bookPath)
     {
         return DB::transaction(function () use ($data, $coverPath, $bookPath) {

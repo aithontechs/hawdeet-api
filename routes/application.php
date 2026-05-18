@@ -8,7 +8,10 @@ use App\Http\Controllers\Application\Book\BookReaderController;
 use App\Http\Controllers\Application\Book\BookReadingProgressController;
 use App\Http\Controllers\Application\Book\BookReviewController;
 use App\Http\Controllers\Application\Cart\CartController;
+use App\Http\Controllers\Application\Community\CommentController;
+use App\Http\Controllers\Application\Community\LikeController;
 use App\Http\Controllers\Application\Community\PostController;
+use App\Http\Controllers\Application\Community\ShareController;
 use App\Http\Controllers\Application\Payment\PaymentController;
 use App\Http\Controllers\Application\Subscription\SubscriptionController;
 use App\Http\Controllers\Application\User\UserController;
@@ -70,6 +73,18 @@ Route::group(['prefix'=> 'v1'] , function () {
 
         // Community ( Posts / Likes / Comments / Share )
         Route::apiResource('posts' , PostController::class) ;
+
+        Route::apiResource('posts/{post}/comments' , CommentController::class)->except('update' , 'destroy' , 'show') ;
+        Route::put('comments/{comment}' , [CommentController::class , 'update']);
+        Route::delete('comments/{comment}' , [CommentController::class , 'destroy']);
+        Route::get('comments/{comment}/replies', [CommentController::class, 'replies']);
+
+        Route::post('posts/{post}/like' , [LikeController::class , 'likePost'])->middleware('throttle:30,1'); ;
+        Route::post('comments/{comment}/like' , [LikeController::class , 'likeComment'])->middleware('throttle:30,1'); ;
+
+        Route::post('posts/{post}/share' , [ShareController::class , 'share']);
+        Route::delete('posts/{post}/share' , [ShareController::class , 'unshare']);
+
 
 
         Route::prefix('user')->group(function () {
