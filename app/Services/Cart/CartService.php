@@ -27,38 +27,59 @@ class CartService
         return $cookieId ;
     }
 
-    public function addItem(?string $cookieId = null  , int $bookId, ?User $user = null)
+    public function addItem(?string $cookieId, int $bookId, string $itemType = 'digital', int $quantity = 1, ?User $user = null): Cart
     {
-        $book = Book::where('id' , $bookId)->where('published' , 1)->first();
-        if(!$book){
-            throw ValidationException::withMessages([
-                'book' => 'the book is not valid',
-            ]);
+        $book = Book::where('id', $bookId)->where('published', 1)->firstOrFail();
+
+        $this->validateItemType($book, $itemType);
+
+        if ($itemType === 'physical') {
+            $this->validateStock($book, $quantity);
         }
-
+        
         if ($user) {
-            $alreadyOwned = $user->userBooks()->where('book_id', $bookId)->exists(); // لازم يكون active
-
-            if ($alreadyOwned) {
-                throw ValidationException::withMessages([
-                    'book' => 'You already have this book',
-                ]);
+            if ($itemType === 'digital') {
+                $alreadyOwned = $user->userBooks()->where('book_id', $bookId)->exists();
+                if ($alreadyOwned) {
+                    throw ValidationException::withMessages([
+                        'book' => 'You already own the digital version of this book.',
+                    ]);
+                }
             }
 
-            return Cart::firstOrCreate(
+            $cartItem = Cart::firstOrCreate(
                 [
-                    'user_id' => $user->id,
-                    'book_id' => $bookId,
-                ]
+                    'user_id'   => $user->id,
+                    'book_id'   => $bookId,
+                    'item_type' => $itemType,
+                ],
+                ['quantity' => $itemType === 'physical' ? $quantity : 1]
+            );
+        } else {
+            $cartItem = Cart::firstOrCreate(
+                [
+                    'cookie_id' => $cookieId,
+                    'book_id'   => $bookId,
+                    'item_type' => $itemType,
+                ],
+                ['quantity' => $itemType === 'physical' ? $quantity : 1]
             );
         }
 
-        return Cart::firstOrCreate(
-            [
-                'cookie_id' => $cookieId,
-                'book_id'   => $bookId,
-            ]
-        );
+        if (!$cartItem->wasRecentlyCreated && $itemType === 'physical') {
+            $newQuantity = $cartItem->quantity + $quantity;
+
+            if ($newQuantity > $book->physical_stock) {
+                throw ValidationException::withMessages([
+                    'quantity' => "Cannot add {$quantity} more. Only {$book->physical_stock} in stock and you already have {$cartItem->quantity} in cart.",
+                ]);
+            }
+
+            $cartItem->increment('quantity', $quantity);
+            $cartItem->refresh();
+        }
+
+        return $cartItem;
     }
 
     public function removeItem(int $cartId, string $cookieId = null , ?User $user = null): bool
@@ -69,29 +90,45 @@ class CartService
     }
 
 
-    public function getItems(?string $cookieId = NULL, ?User $user = null): Collection
+    public function getItems(?string $cookieId, ?User $user)
     {
         return Cart::forSession($cookieId, $user?->id)
-                    ->with('book:id,title,description,price,is_subscription_included,cover')
-                    ->get()
-                    ->map(function (Cart $item) use ($user) {
-                        return [
-                            'cart_id' => $item->id,
-                            'book_id' => $item->book_id,
-                            'book_cover' => $item->book->cover_url ,
-                            'title'=> $item->book->title,
-                            'price'    => $item->book->price,
-                            'in_subscription'=> $user?->hasActiveSubscription() && $item->book->is_subscription_included,
-                        ];
-                    });
+            ->with('book:id,title,price,physical_price,is_subscription_included,cover,type')
+            ->get()
+            ->map(function (Cart $item) use ($user) {
+                $price = $item->item_type === 'digital'
+                    ? $item->book->price
+                    : $item->book->physical_price;
+
+                return [
+                    'cart_id'         => $item->id,
+                    'book_id'         => $item->book_id,
+                    'book_cover'      => $item->book->cover_url,
+                    'title'           => $item->book->title,
+                    'item_type'       => $item->item_type,
+                    'quantity'        => $item->quantity,
+                    'unit_price'      => $price,
+                    'total_price'     => $price * $item->quantity,
+                    'in_subscription' => $item->item_type === 'digital'
+                        && $user?->hasActiveSubscription()
+                        && $item->book->is_subscription_included,
+                ];
+            });
     }
 
 
-    public function getTotal(?string $cookieId, ?User $user = null)
+    public function getTotal(?string $cookieId, ?User $user): float
     {
-        $cartsIds = Cart::forSession($cookieId, $user?->id)->pluck('book_id');
-        $total_price = Book::whereIn('id' , $cartsIds)->sum('price') ;
-        return $total_price ;
+        return Cart::forSession($cookieId, $user?->id)
+                ->with('book:id,price,physical_price,type')
+                ->get()
+                ->sum(function (Cart $item) {
+                    $price = $item->item_type === 'digital'
+                        ? $item->book->price
+                        : $item->book->physical_price;
+
+                    return $price * $item->quantity;
+                });
     }
 
     public function clearCart(?string $cookieId, ?int $userId = null): void
@@ -99,30 +136,34 @@ class CartService
         Cart::forSession($cookieId, $userId)->delete();
     }
 
-    public function mergeGuestCart(string $cookieId, User $user): array
+
+    private function validateItemType(Book $book, string $itemType): void
     {
-        $merged  = 0;
-        $skipped = 0;
+        $valid = match($book->type) {
+            'digital'  => $itemType === 'digital',
+            'physical' => $itemType === 'physical',
+            'both'     => in_array($itemType, ['digital', 'physical']),
+        };
 
-        return DB::transaction(function () use ($cookieId, $user, &$merged, &$skipped) {
-            $guestItems = Cart::where('cookie_id', $cookieId)->whereNull('user_id')->get();
+        if (!$valid) {
+            throw ValidationException::withMessages([
+                'item_type' => "This book is not available as {$itemType}.",
+            ]);
+        }
+    }
 
-            foreach ($guestItems as $guestItem) {
-                $existsInUserCart = Cart::where('user_id', $user->id)->where('book_id', $guestItem->book_id)->exists();
-                $alreadyOwned = $user->userBooks()->where('book_id', $guestItem->book_id)->active()->exists();
-                if ($existsInUserCart || $alreadyOwned) {
-                    $guestItem->delete();
-                    $skipped++;
-                    continue;
-                }
-                $guestItem->update(['user_id' => $user->id]);
-                $merged++;
-            }
+    private function validateStock(Book $book, int $quantity): void
+    {
+        if ($book->physical_stock <= 0) {
+            throw ValidationException::withMessages([
+                'quantity' => 'This book is out of stock.',
+            ]);
+        }
 
-            return [
-                'merged'  => $merged,
-                'skipped' => $skipped,
-            ];
-        });
+        if ($quantity > $book->physical_stock) {
+            throw ValidationException::withMessages([
+                'quantity' => "Only {$book->physical_stock} copies available.",
+            ]);
+        }
     }
 }

@@ -17,7 +17,7 @@ class BookController extends Controller
     use ResponseApi ;
 
     public function __construct(private readonly BookService $bookService) {
-        // $this->authorizeResource(Book::class, 'book');
+        $this->authorizeResource(Book::class, 'book');
     }
 
 
@@ -50,6 +50,7 @@ class BookController extends Controller
 
     public function publish(Book $book)
     {
+        $this->authorize('publish', $book) ;
         if ($book->published) {
             return $this->errorApi('Book is already published.', 422);
         }
@@ -59,6 +60,8 @@ class BookController extends Controller
 
     public function unpublish(Book $book)
     {
+        $this->authorize('unpublish', $book) ;
+
         if (! $book->published) {
             return $this->errorApi('Book is already unpublished.', 422);
         }
@@ -74,11 +77,15 @@ class BookController extends Controller
 
     public function streamFull(Book $book): StreamedResponse
     {
+        $this->authorize('streamfull', $book) ;
+        abort_unless($book->isDigital(), 403, 'This book has no digital version.');
         return $this->bookService->streamBook($book);
     }
 
     public function streamPreview(Book $book): StreamedResponse
     {
+        $this->authorize('streampreview', $book) ;
+        abort_unless($book->isDigital(), 403, 'This book has no digital version.');
         return $this->bookService->streamPreview($book);
     }
 

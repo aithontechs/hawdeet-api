@@ -15,23 +15,32 @@ class BookStoreRequest extends FormRequest
 
     public function rules(): array
     {
+        $type = $this->input('type', 'digital');
+        $isDigital = in_array($type, ['digital', 'both']);
+        $isPhysical = in_array($type, ['physical', 'both']);
+
         return [
-            'title'          => ['required', 'string', 'max:255'],
-            'description'    => ['required', 'string'],
-            'cover'          => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2120'],
-            'file'           => ['required', 'file', 'mimes:pdf', 'max:30720 '],  // 30 MB
-            'price'          => ['required', 'numeric', 'min:0'],
-            'compare_price'  => ['nullable', 'numeric', 'min:0' , 'gt:price'],
-            'age_min'        => ['required', 'integer', 'min:0'],
-            // 'total_pages'    => ['nullable', 'integer', 'min:0'],
-            'is_free'        => ['boolean'],
-            'published'      => ['boolean'],
-            'author_id'  => ['required' , 'exists:users,id'],
+            'title'       => ['required', 'string', 'max:255'],
+            'description' => ['required', 'string'],
+            'type'        => ['required', 'in:digital,physical,both'],
+            'cover'       => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2120'],
+            'author_id'   => ['required', 'exists:users,id'],
+            'age_min'     => ['required', 'integer', 'min:0'],
+            'is_free'     => ['boolean'],
+            'published'   => ['boolean'],
+            'is_subscription_included' => ['nullable', 'boolean'],
             'category_ids'   => ['nullable', 'array'],
             'category_ids.*' => ['integer', 'exists:categories,id'],
-            'preview_start_page' => ['required' , 'numeric' , 'min:0'],
-            'preview_end_page' => ['required' , 'numeric' , 'min:1'],
-            'is_subscription_included' => ['nullable' , 'boolean']
+
+            'file'              => [$isDigital ? 'required' : 'nullable', 'file', 'mimes:pdf' ,'mimetypes:application/pdf', 'max:30720'],
+            'price'             => [$isDigital ? 'required' : 'nullable', 'numeric', 'min:0'],
+            'compare_price'     => ['nullable', 'numeric', 'gt:price'],
+            'preview_start_page'=> [$isDigital ? 'required' : 'nullable', 'integer', 'min:1'],
+            'preview_end_page'  => [$isDigital ? 'required' : 'nullable', 'integer', 'min:1', 'gte:preview_start_page'],
+
+            'physical_price'          => [$isPhysical ? 'required' : 'nullable', 'numeric', 'min:0'],
+            'physical_compare_price'  => ['nullable', 'numeric', 'gt:physical_price'],
+            'physical_stock'          => [$isPhysical ? 'required' : 'nullable', 'integer', 'min:1'],
         ];
     }
 

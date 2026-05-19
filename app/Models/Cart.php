@@ -16,6 +16,8 @@ class Cart extends Model
         'user_id',
         'cookie_id',
         'book_id',
+        'item_type',
+        'quantity',
     ];
 
 

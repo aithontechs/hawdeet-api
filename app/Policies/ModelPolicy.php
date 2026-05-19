@@ -14,8 +14,8 @@ class ModelPolicy
         $name = $map[$name] ?? $name;
         $permission = Str::lower($class . '.' . $name ) ; // role.view
         $admin = $arguments[0] ?? null  ;
-
         if(!$admin) return false ;
+
         return $admin->hasPermission($permission) ;
     }
 }

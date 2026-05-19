@@ -8,6 +8,7 @@ use App\Http\Controllers\Application\Book\BookReaderController;
 use App\Http\Controllers\Application\Book\BookReadingProgressController;
 use App\Http\Controllers\Application\Book\BookReviewController;
 use App\Http\Controllers\Application\Cart\CartController;
+use App\Http\Controllers\Application\Checkout\CheckoutController;
 use App\Http\Controllers\Application\Community\CommentController;
 use App\Http\Controllers\Application\Community\LikeController;
 use App\Http\Controllers\Application\Community\PostController;
@@ -49,7 +50,7 @@ Route::group(['prefix'=> 'v1'] , function () {
 
     // Auth
     Route::middleware(['auth:user-api' , 'verified'])->group(function () {
-        Route::post('carts/checkout' , [CartController::class , 'checkout']);
+        Route::post('carts/checkout' , [CheckoutController::class , 'checkout']);
         Route::post('carts/apply-coupon' , [CartController::class , 'applyCoupon']);
 
         // access book

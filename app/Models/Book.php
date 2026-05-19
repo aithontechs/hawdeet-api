@@ -18,8 +18,12 @@ class Book extends Model
         'cover',
         'file',
         'preview',
+        'type',
         'price',
         'compare_price',
+        'physical_price',
+        'physical_compare_price',
+        'physical_stock',
         'age_min',
         'total_pages',
         'avg_rating',
@@ -35,6 +39,9 @@ class Book extends Model
     protected $casts = [
         'price'         => 'decimal:2',
         'compare_price' => 'decimal:2',
+        'physical_price' => 'decimal:2',
+        'physical_compare_price' => 'decimal:2',
+        'physical_stock'=> 'integer',
         'avg_rating'    => 'float',
         'is_free'       => 'boolean',
         'published'     => 'boolean',
@@ -93,6 +100,16 @@ class Book extends Model
         return $query->with(['categories','uploader:id,name','author:id,name']);
     }
 
+    public function scopeDigital($query)
+    {
+        return $query->whereIn('type', ['digital', 'both']);
+    }
+
+    public function scopePhysical($query)
+    {
+        return $query->whereIn('type', ['physical', 'both']);
+    }
+
     // Relationships
     public function categories()
     {
@@ -124,12 +141,6 @@ class Book extends Model
         return $this->hasMany(BookReview::class);
     }
 
-    public function hasReviewBy(int $userId): bool
-    {
-        return $this->reviews()->where('user_id', $userId)->exists();
-    }
-
-
 
     // storage accessors
     public function getCoverUrlAttribute()
@@ -143,6 +154,27 @@ class Book extends Model
         return $this->file ? Storage::disk('private')->temporaryUrl($this->file, now()->addMinutes(30)) : null;
     }
 
+
+
+    public function hasReviewBy(int $userId): bool
+    {
+        return $this->reviews()->where('user_id', $userId)->exists();
+    }
+
+    public function isDigital(): bool
+    {
+        return in_array($this->type, ['digital', 'both']);
+    }
+
+    public function isPhysical(): bool
+    {
+        return in_array($this->type, ['physical', 'both']);
+    }
+
+    public function hasPhysicalStock(): bool
+    {
+        return $this->isPhysical() && $this->physical_stock > 0;
+    }
 
     public function isAccessibleByUser(int $userId): bool
     {

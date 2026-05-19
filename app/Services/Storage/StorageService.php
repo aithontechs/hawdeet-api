@@ -23,8 +23,10 @@ class StorageService
 
     public function replace(UploadedFile $newFile, ?string $oldPath,string $folder,string $disk = self::DISK_PUBLIC,?string $name = null)
     {
+        $data = $this->upload($newFile, $folder, $disk, $name);
         $this->delete($oldPath, $disk);
-        return $this->upload($newFile, $folder, $disk, $name);
+        
+        return $data ;
     }
 
     public function delete(?string $path, string $disk = self::DISK_PUBLIC)

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->decimal('subtotal' , 10 , 2);
             $table->decimal('discount' , 10 , 2)->default(0) ; // snapshot from coupons system
             $table->decimal('total' , 10 , 2);
-            $table->enum('payment_method', ['wallet', 'card', 'cash'])->nullable();
+            $table->enum('payment_method', ['wallet', 'card', 'cash' , 'instapay'])->nullable();
             $table->enum('payment_status' , ['pending' , 'paid' , 'failed' , 'refunded'])->default('pending') ;
             $table->dateTime('paid_at')->nullable();
             $table->timestamps();

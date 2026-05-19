@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('slug');
             $table->text('description');
             $table->string('cover');
-            $table->string('file');
+            $table->string('file')->nullable();
             $table->string('preview')->nullable();
             $table->decimal('price' , 12 , 2)->default(0.0);
             $table->decimal('compare_price' , 12 , 2)->nullable() ;

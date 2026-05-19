@@ -10,13 +10,14 @@ class OrderItem extends Model
     use HasFactory;
 
     protected $fillable = [
-        'order_id', 'book_id', 'book_name' , 'price', 'access_duration_days',
+        'order_id', 'book_id', 'book_name' , 'price', 'access_duration_days', 'item_type' , 'quantity'
     ];
 
     public $hidden = ['created_at' , 'updated_at'];
 
     protected $casts = [
         'price' => 'decimal:2',
+        'quantity' => 'integer'
     ];
 
     public function order()
