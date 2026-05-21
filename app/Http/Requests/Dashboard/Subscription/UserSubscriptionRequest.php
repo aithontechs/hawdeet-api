@@ -18,7 +18,7 @@ class UserSubscriptionRequest extends FormRequest
             'plan_id' => 'required|exists:subscription_plans,id',
             'price' => 'nullable|numeric|min:0' ,
             'status' => 'sometimes|in:active,inactive',
-            'payment_status' => 'sometimes|in:gift,paid,pending',
+            'payment_status' => 'sometimes|in:gift',
         ];
     }
 }

@@ -9,6 +9,7 @@ class Payment extends Model
     protected $fillable = [
         'user_id',
         'order_id',
+        'paymob_order_id',
         'user_subscription_id',
         'amount',
         'currency',
@@ -39,25 +40,16 @@ class Payment extends Model
         return $this->belongsTo(Order::class);
     }
 
-    public function userSubscription()
+    public function subscription()
     {
-        return $this->belongsTo(UserSubscription::class);
+        return $this->belongsTo(UserSubscription::class, 'user_subscription_id');
     }
 
 
-    public function scopePaid($query)
-    {
-        return $query->where('status', 'paid');
-    }
 
-    public function scopePending($query)
+    public function getPayableAttribute()
     {
-        return $query->where('status', 'pending');
-    }
-
-    public function scopeForUser($query, int $userId)
-    {
-        return $query->where('user_id', $userId);
+        return $this->order ?? $this->subscription;
     }
 
 
@@ -65,6 +57,9 @@ class Payment extends Model
     {
         return $this->status === 'paid';
     }
+
+    public function isPending(): bool { return $this->status === 'pending'; }
+
 
     public function isFailed(): bool
     {

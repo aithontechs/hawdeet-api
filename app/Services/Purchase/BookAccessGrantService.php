@@ -10,7 +10,10 @@ class BookAccessGrantService
     public function grantBookAccess(Order $order)
     {
         foreach ($order->items as $item) {
-            // لو عند الكتاب يجدد له بس لو لا يبقي بيكريت مرة وصل جديد
+            
+            if ($item->item_type !== 'digital') {
+                continue;
+            }
             UserBook::updateOrCreate(
                 [
                     'user_id'     => $order->user_id,

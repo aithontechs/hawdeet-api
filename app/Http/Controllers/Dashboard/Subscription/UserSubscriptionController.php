@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Dashboard\Subscription;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dashboard\Subscription\UserSubscriptionRequest;
+use App\Http\Resources\UserSubscriptionResource;
 use App\Models\SubscriptionPlan;
 use App\Models\UserSubscription;
 use App\Traits\ResponseApi;
@@ -14,8 +15,9 @@ class UserSubscriptionController extends Controller
     use ResponseApi ;
     public function index(Request $request)
     {
-        $subscriptions = UserSubscription::latest()->status($request->status)->paginate(15) ;
-        return $this->successApi($subscriptions , 'Subscription fetched successfully');
+        $subscriptions = UserSubscription::latest()->with(['user:id,name' , 'plan:id,name'])->status($request->status)->paginate(15) ;
+        $subscriptions->setCollection(UserSubscriptionResource::collection($subscriptions->getCollection())->collection);
+        return $this->successApi($subscriptions,'Subscription fetched successfully');
     }
 
 
@@ -41,10 +43,9 @@ class UserSubscriptionController extends Controller
         return $this->successApi($subscription, 'Subscription assigned to user successfully');
     }
 
-
     public function show(UserSubscription $userSubscription)
     {
-        return $this->successApi($userSubscription->load(['user:id,name,phone,email' , 'plan']) ,'Subscription fetch successfully') ;
+        return $this->successApi($userSubscription->load(['user:id,name,phone,email' , 'plan:id,name,duration_months,price']) ,'Subscription fetch successfully') ;
     }
 
     public function update(Request $request, string $id)
@@ -54,11 +55,18 @@ class UserSubscriptionController extends Controller
 
     public function activate(Request $request , $id)
     {
-        $request->validate(['count_months' => 'required|integer|min:1']);
+        $request->validate(['count_months' => 'required|integer|min:0']);
         $user_subscription = UserSubscription::findorfail($id) ;
         if($user_subscription->status == 'active') // احنا هنعمل Schdule عشان هيبقي في اشتراكات Expired
         {
             return $this->errorApi("Subscription already active until $user_subscription->end_at ") ;
+        }
+
+        if($request->count_month === 0){
+            $user_subscription->update([
+                'status' => 'active',
+            ]);
+            return $this->successApi($user_subscription, 'Subscription Activated successfully');
         }
 
         $user_subscription->update([

@@ -14,6 +14,7 @@ use App\Http\Controllers\Application\Community\LikeController;
 use App\Http\Controllers\Application\Community\PostController;
 use App\Http\Controllers\Application\Community\ShareController;
 use App\Http\Controllers\Application\Payment\PaymentController;
+use App\Http\Controllers\Application\Shipping\ShippingAddressController;
 use App\Http\Controllers\Application\Subscription\SubscriptionController;
 use App\Http\Controllers\Application\User\UserController;
 use Illuminate\Support\Facades\Mail;
@@ -47,11 +48,27 @@ Route::group(['prefix'=> 'v1'] , function () {
     Route::get('subscription-plans' , [SubscriptionController::class , 'index']) ;
     Route::get('books/{book}/preview/page/{page}', [BookReaderController::class, 'preview']);
 
+    Route::post('payments/card' , [PaymentController::class , 'payWithCard']);
+    Route::post('payments/wallet' , [PaymentController::class , 'payWithWallet']);
+
+
+    Route::post('/payments/webhook', [PaymentController::class, 'webhook']);
+    Route::get('/payments/callback', [PaymentController::class, 'callback']);
+
+
 
     // Auth
     Route::middleware(['auth:user-api' , 'verified'])->group(function () {
-        Route::post('carts/checkout' , [CheckoutController::class , 'checkout']);
+        // checkout and shipping
+        Route::post('/checkout/preview' , [CheckoutController::class , 'preview']);
+        Route::post('/checkout' , [CheckoutController::class , 'checkout']);
         Route::post('carts/apply-coupon' , [CartController::class , 'applyCoupon']);
+
+
+        Route::get('/checkout/shipping-zones' , [CheckoutController::class , 'shippingZones'] );
+        Route::apiResource('/shipping/addresses' , ShippingAddressController::class )->except('show' , 'destroy');
+
+
 
         // access book
         Route::get('books/{book}/read/page/{page}' , [BookReaderController::class , 'page']);
@@ -70,7 +87,6 @@ Route::group(['prefix'=> 'v1'] , function () {
         Route::post('subscription-plans' , [SubscriptionController::class , 'store']);
         Route::post('subscription-plans/renew',  [SubscriptionController::class, 'renew']);
 
-        Route::get('payment/{payment}' , [PaymentController::class , 'pay'])->name('payment.pay') ; // test only
 
         // Community ( Posts / Likes / Comments / Share )
         Route::apiResource('posts' , PostController::class) ;

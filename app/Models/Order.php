@@ -19,6 +19,9 @@ class Order extends Model
         'payment_method',
         'payment_status',
         'paid_at',
+        'shipping_cost',
+        'has_physical',
+        'idempotency_key',
     ];
 
     protected $casts = [
@@ -28,17 +31,27 @@ class Order extends Model
         'paid_at'        => 'datetime',
     ];
 
+    public $hidden = ['idempotency_key'];
 
-    public function scopeFilter(Builder $builder , $request)
+
+    public function scopeFilter(Builder $builder, $request)
     {
-        $builder->when($request->filled('name') , function($query , $name){
-            $query->whereHas('user' , function($query) use ($name){
-                $query->where('name','like','%'.$name.'%');
-            }) ;
+        $builder->when($request->filled('name'), function ($query) use ($request) {
+
+            $query->whereHas('user', function ($query) use ($request) {
+                $query->where('name', 'like', '%' . $request->name . '%');
+            });
+
         });
 
-        $builder->when($request->filled('order_number') , function($query , $order_number){
-            $query->where('order_number','like',"%{$order_number}%") ;
+        $builder->when($request->filled('order_number'), function ($query) use ($request) {
+
+            $query->where(
+                'order_number',
+                'like',
+                "%{$request->order_number}%"
+            );
+
         });
     }
 
@@ -57,9 +70,24 @@ class Order extends Model
         return $this->status === 'paid';
     }
 
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function latestPayment()
+    {
+        return $this->hasOne(Payment::class)->latestOfMany();
+    }
+
     public function payment()
     {
-        return $this->hasOne(Payment::class);
+        return $this->hasMany(Payment::class);
+    }
+
+    public function physicalOrder()
+    {
+        return $this->hasOne(PhysicalOrder::class);
     }
 
     public static function generateOrderNumber()

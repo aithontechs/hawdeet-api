@@ -4,10 +4,14 @@ namespace App\Services\Subscription;
 
 use App\Models\{Payment, SubscriptionPlan, User, UserSubscription};
 use App\Models\UserBook;
+use App\Services\Payment\PaymobService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class SubscriptionService
 {
+    public function __construct(private PaymobService $paymob) {}
+
     public function initiate(User $user, SubscriptionPlan $plan): Payment
     {
         return DB::transaction(function () use ($user, $plan) {
@@ -29,6 +33,8 @@ class SubscriptionService
                 'currency'             => 'EGP',
                 'type'                 => 'subscription',
                 'status'               => 'pending',
+                'payment_gateway'      => 'paymob',
+
             ]);
         });
     }
@@ -38,11 +44,11 @@ class SubscriptionService
         return DB::transaction(function () use ($user, $plan) {
 
             $current = UserSubscription::query()
-                ->where('user_id', $user->id)
-                ->whereIn('status', ['active', 'expired'])
-                ->where('payment_status', 'paid')
-                ->latest('end_at')
-                ->first();
+                            ->where('user_id', $user->id)
+                            ->whereIn('status', ['active', 'expired'])
+                            ->where('payment_status', 'paid')
+                            ->latest('end_at')
+                            ->first();
 
             $startAt = $current && $current->end_at->isFuture()
                 ? $current->end_at
@@ -65,6 +71,8 @@ class SubscriptionService
                 'currency'             => 'EGP',
                 'type'                 => 'subscription',
                 'status'               => 'pending',
+                'payment_gateway'      => 'paymob',
+
             ]);
         });
     }
@@ -78,7 +86,7 @@ class SubscriptionService
                 'paid_at' => now(),
             ]);
 
-            $subscription = $payment->userSubscription;
+            $subscription = $payment->subscription ;
 
             $subscription->update([
                 'status'         => 'active',
@@ -128,40 +136,57 @@ class SubscriptionService
                     ->exists();
     }
 
-    // public function upgrade(User $user, SubscriptionPlan $newPlan)
-    // {
-    //     return DB::transaction(function () use ($user, $newPlan) {
+    public function initiatePaymobPayment(Payment $payment, Request $request, string $method): string
+    {
+        $payment->refresh();
 
-    //         $current = UserSubscription::query()
-    //             ->where('user_id', $user->id)
-    //             ->where('status', 'active')
-    //             ->where('end_at', '>', now())
-    //             ->firstOrFail();
+        if ($payment->paymob_order_id) {
+            return $this->resumePaymobPayment($payment, $request, $method);
+        }
 
-    //         $current->update([
-    //             'status'      => 'inactive',
-    //             'canceled_at' => now(),
-    //             'ended_reason'=> 'upgraded_to_plan_' . $newPlan->id,
-    //         ]);
+        $amountCents = (int) ($payment->amount * 100);
+        $billingData = $this->buildBillingData($request, $payment);
 
-    //         $subscription = UserSubscription::create([
-    //             'user_id'        => $user->id,
-    //             'plan_id'        => $newPlan->id,
-    //             'price'          => $newPlan->price,
-    //             'start_at'       => now(),
-    //             'end_at'         => now()->addMonths($newPlan->duration_months),
-    //             'status'         => 'inactive',
-    //             'payment_status' => 'pending',
-    //         ]);
+        if ($method === 'card') {
+            $result = $this->paymob->createCardPayment($amountCents,$billingData,"PAY-{$payment->id}-" . now()->timestamp);
+            $url = $result['iframe_url'];
+        }
+        else{
+            $result = $this->paymob->createWalletPayment($amountCents,$billingData,"PAY-{$payment->id}-" . now()->timestamp,$request->input('phone', ''));
+            $url = $result['redirect_url'];
+        }
 
-    //         return Payment::create([
-    //             'user_id'              => $user->id,
-    //             'user_subscription_id' => $subscription->id,
-    //             'amount'               => $newPlan->price,
-    //             'currency'             => 'EGP',
-    //             'type'                 => 'subscription',
-    //             'status'               => 'pending',
-    //         ]);
-    //     });
-    // }
+        $payment->update(['paymob_order_id' => $result['order_id']]);
+        return $url;
+    }
+
+    private function resumePaymobPayment(Payment $payment, Request $request, string $method): string
+    {
+        $amountCents = (int) ($payment->amount * 100);
+        $billingData = $this->buildBillingData($request, $payment);
+
+        $paymentKey = $this->paymob->getPaymentKeyForExistingOrder($amountCents,(int) $payment->paymob_order_id,$billingData,$method);
+
+        if ($method === 'card') {
+            $iframeId = config('paymob.iframe_id');
+            return "https://accept.paymob.com/api/acceptance/iframes/{$iframeId}?payment_token={$paymentKey}";
+        }
+
+        return $this->paymob->payWithWalletKey($paymentKey,$request->input('phone', ''),);
+    }
+
+    private function buildBillingData(Request $request, Payment $payment): array
+    {
+        return [
+            'first_name'   => $request->input('first_name') ?: ($payment->user->name ?: 'N/A'),
+            'last_name'    => $request->input('last_name')  ?: 'N/A',
+            'email'        => $request->input('email')      ?: ($payment->user->email ?: 'user@example.com'),
+            'phone_number' => $request->input('phone')      ?: 'N/A',
+            'apartment'    => 'N/A', 'floor'    => 'N/A',
+            'street'       => 'N/A', 'building' => 'N/A',
+            'city'         => 'Cairo', 'country' => 'EG',
+            'postal_code'  => 'N/A',  'state'   => 'N/A',
+        ];
+    }
+
 }

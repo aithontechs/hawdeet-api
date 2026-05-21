@@ -4,22 +4,177 @@ namespace App\Http\Controllers\Application\Payment;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
+use App\Services\Cart\CartService;
+use App\Services\Payment\PaymobService;
+use App\Services\Purchase\BookAccessGrantService;
 use App\Services\Subscription\SubscriptionService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
-    use ResponseApi ;
-    public function __construct(private readonly SubscriptionService $subscription) {
+    use ResponseApi;
 
+    public function __construct(
+        private PaymobService          $paymob,
+        private BookAccessGrantService $grantService,
+        private SubscriptionService    $subscriptionService,
+        private CartService            $cartService,
+    ) {}
+
+    public function webhook(Request $request)
+    {
+        Log::info('Paymob Webhook', [
+            'query' => $request->query(),
+            'body'  => $request->all(),
+        ]);
+
+        $hmac = $request->query('hmac');
+
+        if (!$this->paymob->verifyHmac($request->query(), $hmac)) {
+            Log::warning('Paymob Webhook: Invalid HMAC');
+            return response()->json(['message' => 'Invalid HMAC'], 403);
+        }
+
+        $isSuccess = filter_var($request->query('success'), FILTER_VALIDATE_BOOLEAN);
+
+        $paymentId = $request->query('merchant_order_id');
+        $paymentId = $request->query('merchant_order_id');
+        if (str_contains($paymentId, 'PAY-')) {
+            $paymentId = explode('-', $paymentId)[1];
+        }
+        $payment   = Payment::find($paymentId);
+
+        if (!$payment) {
+            Log::warning('Paymob Webhook: Payment not found', [
+                'merchant_order_id' => $paymentId
+            ]);
+            return response()->json(['message' => 'Payment not found'], 404);
+        }
+
+        if ($payment->isPaid()) {
+            return response()->json(['message' => 'Already processed']);
+        }
+
+        if (!$isSuccess) {
+            $payment->update([
+                'status'           => 'failed',
+                'failure_reason'   => $request->query('data.message', 'Payment failed'),
+                'gateway_response' => $request->query(),
+            ]);
+
+            $payment->order?->update(['payment_status' => 'failed']);
+            $payment->subscription?->update(['payment_status' => 'failed']);
+
+            Log::info("Payment #{$payment->id} failed.");
+            return response()->json(['message' => 'Payment failure recorded']);
+        }
+
+        $payment->update([
+            'status'                 => 'paid',
+            'gateway_transaction_id' => $request->query('id'),
+            'paymob_order_id'        => $request->query('order'),
+            'gateway_response'       => $request->query(),
+            'paid_at'                => now(),
+        ]);
+
+        if ($payment->type === 'order') {
+            $this->handleOrderPayment($payment);
+        } elseif ($payment->type === 'subscription') {
+            $this->handleSubscriptionPayment($payment);
+        }
+
+        return response()->json(['message' => 'Webhook processed successfully']);
     }
 
-    // test only , this function change after integration with payment
-    public function pay(Payment $payment)
+    // for test only - not used in production
+    public function callback(Request $request)
     {
-        // if success payment
-        $this->subscription->activate($payment) ;
-        return $this->successApi(null , 'Subscription is be paid suucessfully , the books become available to you') ;
+        Log::info('Paymob Webhook', [
+            'query' => $request->query(),
+            'body'  => $request->all(),
+        ]);
+
+        $hmac = $request->query('hmac');
+
+        if (!$this->paymob->verifyHmac($request->query(), $hmac)) {
+            Log::warning('Paymob Webhook: Invalid HMAC');
+            return response()->json(['message' => 'Invalid HMAC'], 403);
+        }
+
+        $isSuccess = filter_var($request->query('success'), FILTER_VALIDATE_BOOLEAN);
+
+        $paymentId = $request->query('merchant_order_id');
+        if (str_contains($paymentId, 'PAY-')) {
+            $paymentId = explode('-', $paymentId)[1];
+        }
+        $payment   = Payment::find($paymentId);
+
+        if (!$payment) {
+            Log::warning('Paymob Webhook: Payment not found', [
+                'merchant_order_id' => $paymentId
+            ]);
+            return response()->json(['message' => 'Payment not found'], 404);
+        }
+
+        if ($payment->isPaid()) {
+            return response()->json(['message' => 'Already processed']);
+        }
+
+        if (!$isSuccess) {
+            $payment->update([
+                'status'           => 'failed',
+                'failure_reason'   => $request->query('data.message', 'Payment failed'),
+                'gateway_response' => $request->query(),
+            ]);
+
+            $payment->order?->update(['payment_status' => 'failed']);
+            $payment->subscription?->update(['payment_status' => 'failed']);
+
+            Log::info("Payment #{$payment->id} failed.");
+            return response()->json(['message' => 'Payment failure recorded']);
+        }
+
+        $payment->update([
+            'status'                 => 'paid',
+            'gateway_transaction_id' => $request->query('id'),
+            'paymob_order_id'        => $request->query('order'),
+            'gateway_response'       => $request->query(),
+            'paid_at'                => now(),
+        ]);
+
+        if ($payment->type === 'order') {
+            $this->handleOrderPayment($payment);
+        } elseif ($payment->type === 'subscription') {
+            $this->handleSubscriptionPayment($payment);
+        }
+
+        return response()->json(['message' => 'Webhook processed successfully']);
+    }
+
+    private function handleOrderPayment(Payment $payment): void
+    {
+        $order = $payment->order;
+
+        if (!$order || $order->payment_status === 'paid') return;
+
+        $this->grantService->grantBookAccess($order);
+        $this->cartService->clearCart(null, $order->user_id);
+        $order->update(['payment_status' => 'paid' , 'paid_at' => now()]);
+        Cache::forget("user_books:{$order->user_id}");
+        Log::info("Order #{$order->order_number} paid.");
+    }
+
+
+    private function handleSubscriptionPayment(Payment $payment): void
+    {
+        $subscription = $payment->subscription;
+
+        if (!$subscription || $subscription->payment_status === 'paid') return;
+
+        $this->subscriptionService->activate($payment);
+        Log::info("Subscription #{$subscription->id} activated via Paymob webhook.");
     }
 }

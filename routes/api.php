@@ -6,6 +6,7 @@ use App\Http\Controllers\Dashboard\Book\BookController;
 use App\Http\Controllers\Dashboard\Category\CategoryController;
 use App\Http\Controllers\Dashboard\Coupon\CouponController;
 use App\Http\Controllers\Dashboard\Order\OrderController;
+use App\Http\Controllers\Dashboard\Shipping\ShippingZoneController;
 use App\Http\Controllers\Dashboard\Subscription\{SubscriptionPlanController , UserSubscriptionController };
 use App\Http\Controllers\Dashboard\User\UserController;
 use Illuminate\Support\Facades\Route;
@@ -45,12 +46,14 @@ Route::group(['prefix'=> 'v1/admin'], function () {
 
 
         // ===== Order ======
-        Route::apiResource('orders' , OrderController::class) ;
+        Route::get('orders/stats' , [OrderController::class , 'stats']) ;
+        Route::apiResource('orders' , OrderController::class)->only(['index' , 'show']) ;
+
 
         // ===== Coupons =====
         Route::apiResource('coupons' , CouponController::class) ;
 
-        
+        Route::apiResource('shipping-zones' , ShippingZoneController::class) ;
 
 
 

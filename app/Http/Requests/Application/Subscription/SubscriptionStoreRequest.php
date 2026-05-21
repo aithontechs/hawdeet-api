@@ -17,6 +17,11 @@ class SubscriptionStoreRequest extends FormRequest
     {
         return [
             'plan_id' => ['required', 'integer', 'exists:subscription_plans,id'],
+            'payment_method' => ['required', 'in:card,wallet'],
+            'first_name'     => ['nullable', 'string', 'max:100'],
+            'last_name'      => ['nullable', 'string', 'max:100'],
+            'email'          => ['nullable', 'email'],
+            'phone' => ['required_if:payment_method,wallet','nullable','digits:11'],
         ];
     }
 }

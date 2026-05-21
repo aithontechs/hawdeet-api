@@ -15,7 +15,7 @@ return new class extends Migration
             $table->foreignId('book_id')->references('id')->on('books')->onDelete('cascade');
             $table->string('book_name') ; // snapshot
             $table->decimal('price' , 12 , 2) ; // snapshot
-            $table->unsignedInteger('access_duration_days')->default(365);
+            $table->unsignedInteger('access_duration_days')->nullable();
             $table->timestamps();
         });
     }

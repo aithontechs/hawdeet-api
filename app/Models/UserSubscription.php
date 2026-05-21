@@ -29,6 +29,8 @@ class UserSubscription extends Model
         'price' => 'decimal:2',
     ];
 
+    public $hidden = ['updated_at'];
+
 
     public function scopeStatus(Builder $builder , $status)
     {

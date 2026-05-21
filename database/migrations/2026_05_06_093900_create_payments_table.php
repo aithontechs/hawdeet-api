@@ -20,11 +20,11 @@ return new class extends Migration
 
             $table->decimal('amount', 12, 2);
             $table->string('currency', 10)->default('EGP');
-            $table->enum('type', ['order','subscription',]);
+            $table->enum('type', ['order','subscription']);
 
             $table->enum('status', ['pending','paid','failed','refunded'])->default('pending');
 
-            $table->string('payment_gateway')->nullable(); 
+            $table->string('payment_gateway')->nullable();
             $table->string('gateway_transaction_id')->nullable()->unique();
             $table->json('gateway_response')->nullable();
             $table->timestamp('paid_at')->nullable();
