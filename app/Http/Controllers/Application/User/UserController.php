@@ -32,7 +32,7 @@ class UserController extends Controller
             $data['avatar_url'] = $this->storageService->replace(
                 $request->file('avatar_url'),
                 $user->avatar_url,
-                'users/avatars'
+                'avater/users'
             );
         }
 

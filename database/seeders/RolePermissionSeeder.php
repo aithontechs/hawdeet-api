@@ -72,6 +72,13 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'Create Shipping Zone', 'permission' => 'shippingzone.create'],
             ['name' => 'Update Shipping Zone', 'permission' => 'shippingzone.update'],
             ['name' => 'Delete Shipping Zone', 'permission' => 'shippingzone.delete'],
+
+
+            ['name' => 'View Admins', 'permission' => 'admin.view'],
+            ['name' => 'Show Admin', 'permission' => 'admin.show'],
+            ['name' => 'Create Admin', 'permission' => 'admin.create'],
+            ['name' => 'Change Role and toggle activated Admins', 'permission' => 'admin.update'],
+            ['name' => 'Delete Admin', 'permission' => 'admin.delete'],
         ];
 
         foreach ($permissions as $permission) {

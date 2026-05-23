@@ -1,11 +1,13 @@
 <?php
 
+use App\Http\Controllers\Dashboard\Admins\AdminController;
 use App\Http\Controllers\Dashboard\Auth\{AuthController ,ForgotPasswordController , LoginController , LogoutController , ResetPasswordController};
 use App\Http\Controllers\Dashboard\Authorization\{PermissionController , RoleController };
 use App\Http\Controllers\Dashboard\Book\BookController;
 use App\Http\Controllers\Dashboard\Category\CategoryController;
 use App\Http\Controllers\Dashboard\Coupon\CouponController;
 use App\Http\Controllers\Dashboard\Order\OrderController;
+use App\Http\Controllers\Dashboard\Settings\ProfileController;
 use App\Http\Controllers\Dashboard\Shipping\ShippingZoneController;
 use App\Http\Controllers\Dashboard\Subscription\{SubscriptionPlanController , UserSubscriptionController };
 use App\Http\Controllers\Dashboard\User\UserController;
@@ -55,6 +57,11 @@ Route::group(['prefix'=> 'v1/admin'], function () {
 
         Route::apiResource('shipping-zones' , ShippingZoneController::class) ;
 
+        Route::get('profile' , [ProfileController::class , 'profile']) ;
+        Route::put('profile' , [ProfileController::class , 'updateProfile']) ;
+
+
+        Route::apiResource('admins' , AdminController::class)->except(['show']) ;
 
 
     });

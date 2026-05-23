@@ -20,6 +20,16 @@ class LoginController extends Controller
         if (!$token = auth('admin-api')->attempt($credentials)) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
+
+        $admin = auth('admin-api')->user();
+        if (!$admin->is_active) {
+            auth('admin-api')->logout();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Your account is inactive'
+            ], 403);
+        }
         $tokens =  $this->respondWithToken($token);
         return $this->successApi($tokens , 'Admin login Seccessfully') ;
     }
