@@ -4,7 +4,7 @@ namespace App\Policies;
 
 use App\Models\User;
 
-class UserSubscriptionPolicy extends ModelPolicy
+class OrderPolicy extends ModelPolicy
 {
     public function __construct()
     {

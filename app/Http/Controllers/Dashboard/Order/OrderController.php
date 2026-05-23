@@ -13,12 +13,14 @@ class OrderController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Order::class) ;
         $orders = Order::with('user:id,name')->filter($request)->latest()->paginate(15) ;
         return $this->successApi($orders , 'Orders fetched successully') ;
     }
 
     public function show($id)
     {
+        $this->authorize('show', Order::class) ;
         $order = Order::with([
                 'items',
                 'payment:id,order_id,payment_gateway,paymob_order_id,gateway_transaction_id,paid_at,created_at',
@@ -37,9 +39,9 @@ class OrderController extends Controller
         );
     }
 
-
     public function stats()
     {
+        $this->authorize('viewAny', Order::class) ;
         $stats = Order::selectRaw("
                 COUNT(*) as total_orders,
 

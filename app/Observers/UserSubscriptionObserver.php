@@ -9,6 +9,11 @@ class UserSubscriptionObserver
 {
     public function __construct(private readonly UserBookService $userBookService) {}
 
+    public function created(UserSubscription $subscription): void
+    {
+        $this->userBookService->clearCache($subscription->user_id);
+    }
+    
     public function updated(UserSubscription $subscription): void
     {
         if (!$subscription->wasChanged(['status', 'end_at'])) {

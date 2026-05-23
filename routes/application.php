@@ -55,8 +55,6 @@ Route::group(['prefix'=> 'v1'] , function () {
     Route::post('/payments/webhook', [PaymentController::class, 'webhook']);
     Route::get('/payments/callback', [PaymentController::class, 'callback']);
 
-
-
     // Auth
     Route::middleware(['auth:user-api' , 'verified'])->group(function () {
         // checkout and shipping

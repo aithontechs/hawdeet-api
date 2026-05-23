@@ -13,6 +13,12 @@ use Illuminate\Http\Request;
 class UserSubscriptionController extends Controller
 {
     use ResponseApi ;
+
+    public function __construct()
+    {
+        $this->authorizeResource(UserSubscription::class , 'user_subscription') ;
+    }
+
     public function index(Request $request)
     {
         $subscriptions = UserSubscription::latest()->with(['user:id,name' , 'plan:id,name'])->status($request->status)->paginate(15) ;
@@ -48,13 +54,9 @@ class UserSubscriptionController extends Controller
         return $this->successApi($userSubscription->load(['user:id,name,phone,email' , 'plan:id,name,duration_months,price']) ,'Subscription fetch successfully') ;
     }
 
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
     public function activate(Request $request , $id)
     {
+        $this->authorize('activate', UserSubscription::class) ;
         $request->validate(['count_months' => 'required|integer|min:0']);
         $user_subscription = UserSubscription::findorfail($id) ;
         if($user_subscription->status == 'active') // احنا هنعمل Schdule عشان هيبقي في اشتراكات Expired
@@ -80,6 +82,7 @@ class UserSubscriptionController extends Controller
 
     public function cancel(Request $request , $id)
     {
+        $this->authorize('cancel', UserSubscription::class) ;
         $user_subscription = UserSubscription::findorfail($id) ;
         if($user_subscription->status == 'inactive'){
             return $this->errorApi('Subscription already inactive') ;
@@ -95,6 +98,7 @@ class UserSubscriptionController extends Controller
 
     public function stats()
     {
+        $this->authorize('viewAny', UserSubscription::class);
         $stats = [
             'total' => UserSubscription::count(),
             'active' => UserSubscription::where('status', 'active')->count(),

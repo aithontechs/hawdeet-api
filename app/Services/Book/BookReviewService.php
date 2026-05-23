@@ -21,7 +21,7 @@ class BookReviewService
     public function store(Book $book, User $user, array $validated)
     {
         $hasPurchased = in_array($book->id,$this->userBookService->getUserBookIds($user));
-        abort_unless($hasPurchased, 403, 'You must purchase this book before reviewing it.') ;
+        abort_unless($hasPurchased, 403, 'You must access this book across purchase or subscription before reviewing it.') ;
         abort_if($book->hasReviewBy($user->id),422,'You have already reviewed this book.');
         $validated['user_id'] = $user->id;
         $validated['book_id'] = $book->id;

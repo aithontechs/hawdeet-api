@@ -45,6 +45,7 @@ class UserBookService
                 'granted_at'           => now(),
             ]
         );
+        // $this->clearCache($user->id) ;
     }
 
     public function hasActiveSubscription(User $user): bool

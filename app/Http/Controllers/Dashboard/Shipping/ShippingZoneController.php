@@ -14,7 +14,9 @@ class ShippingZoneController extends Controller
 
     public function __construct(
         private ShippingService $shippingService
-    ) {}
+    ) {
+            $this->authorizeResource(ShippingZone::class, 'shippingZone');
+    }
 
     public function index()
     {

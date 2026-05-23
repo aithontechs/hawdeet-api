@@ -12,6 +12,11 @@ class UserController extends Controller
 {
     use ResponseApi ;
 
+    public function __construct()
+    {
+        $this->authorizeResource(User::class, 'user');
+    }
+
     public function index(Request $request)
     {
         $users = User::query()->latest()->search($request->search)->type($request->type)
@@ -40,7 +45,6 @@ class UserController extends Controller
         return $this->successApi($user ,'User updated successfully') ;
     }
 
-    // هيبقي في قيود بعدين يا حودة للحذف 
     public function destroy(User $user)
     {
         $user->delete();
