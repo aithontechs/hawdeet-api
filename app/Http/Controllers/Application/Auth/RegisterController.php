@@ -23,7 +23,7 @@ class RegisterController extends Controller
 
             $data['avatar_url'] = $this->storageService->upload(
                 file: $request->file('avatar_url'),
-                folder: 'avater/users'
+                folder: 'avatar/users'
             );
         }
         $user = User::create($data) ;

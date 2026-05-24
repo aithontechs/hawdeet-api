@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Application\Book;
 use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Models\Category;
+use App\Services\Book\UserBookService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
 
@@ -12,9 +13,29 @@ class BookController extends Controller
 {
     use ResponseApi ;
 
+    public function __construct(private readonly UserBookService $userBookService) {}
+
     public function index(Request $request)
     {
-        $books = Book::search($request)->where('published' , true)->latest()->paginate(15);
+        $user = auth()->user();
+
+        $hasSubscription   = $user ? $this->userBookService->hasActiveSubscription($user) : false;
+        $accessibleBookIds = $user ? $this->userBookService->getUserBookIds($user) : [];
+        $books = Book::search($request)->where('published', true)->latest()->paginate(15);
+        $books->through(function ($book) use ($accessibleBookIds, $hasSubscription) {
+
+            $hasDirect  = in_array($book->id, $accessibleBookIds);
+            $hasViaSubscription = $hasSubscription && $book->is_subscription_included;
+
+            return array_merge($book->toArray(), [
+                'access' => [
+                    'has_access'       => $hasDirect || $hasViaSubscription || $book->is_free,
+                    'via_purchase'     => $hasDirect,
+                    'via_subscription' => $hasViaSubscription,
+                    'has_subscription' => $hasSubscription,
+                ],
+            ]);
+        });
         return $this->successApi($books , 'Books fetched successfully') ;
     }
 

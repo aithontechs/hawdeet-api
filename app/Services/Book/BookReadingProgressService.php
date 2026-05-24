@@ -60,4 +60,30 @@ class BookReadingProgressService
         return $query->get();
     }
 
+
+
+    public function getProfileStats(User $user): array
+    {
+        $stats = BookReadingProgress::query()
+            ->where('user_id', $user->id)
+            ->selectRaw("
+                COUNT(*)  AS library_count,
+                SUM(status = 'completed') AS completed_count,
+                SUM(status = 'reading') AS reading_count,
+                SUM(
+                    status = 'completed'
+                    AND MONTH(completed_at) = MONTH(NOW())
+                    AND YEAR(completed_at)  = YEAR(NOW())
+                )AS monthly_achievement
+            ")
+            ->first();
+
+        return [
+            'library_count'       => (int) $stats->library_count,
+            'completed_count'     => (int) $stats->completed_count,
+            'reading_count'       => (int) $stats->reading_count,
+            'monthly_achievement' => (int) $stats->monthly_achievement,
+        ];
+    }
+
 }

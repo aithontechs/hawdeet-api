@@ -19,10 +19,11 @@ class UserUpdateRequest extends FormRequest
             'phone' => [
                 'sometimes',
                 'digits:11',
-                Rule::unique('users', 'phone')->ignore(auth()->id()),
+                Rule::unique('users', 'phone')->Ignore(auth()->id()),
             ],
             'birth_date' => 'sometimes|date',
             'avatar_url' => 'sometimes|image',
+            'bio' => 'sometimes|string|max:1000'
         ];
     }
 }

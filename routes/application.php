@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Application\Setting\ChangePasswordController;
 use App\Http\Controllers\Application\Auth\{LoginController , LogoutController, RegisterController , ResetPasswordController, SocialiteController, VerificationController};
 use App\Http\Controllers\Application\Auth\ForgotPasswordController;
 use App\Http\Controllers\Application\Book\BookController;
@@ -8,11 +9,13 @@ use App\Http\Controllers\Application\Book\BookReaderController;
 use App\Http\Controllers\Application\Book\BookReadingProgressController;
 use App\Http\Controllers\Application\Book\BookReviewController;
 use App\Http\Controllers\Application\Cart\CartController;
+use App\Http\Controllers\Application\Category\CategoryController;
 use App\Http\Controllers\Application\Checkout\CheckoutController;
 use App\Http\Controllers\Application\Community\CommentController;
 use App\Http\Controllers\Application\Community\LikeController;
 use App\Http\Controllers\Application\Community\PostController;
 use App\Http\Controllers\Application\Community\ShareController;
+use App\Http\Controllers\Application\Follow\FollowController;
 use App\Http\Controllers\Application\Payment\PaymentController;
 use App\Http\Controllers\Application\Shipping\ShippingAddressController;
 use App\Http\Controllers\Application\Subscription\SubscriptionController;
@@ -57,6 +60,9 @@ Route::group(['prefix'=> 'v1'] , function () {
 
     // Auth
     Route::middleware(['auth:user-api' , 'verified'])->group(function () {
+
+        Route::get('categories' , [CategoryController::class , 'index']) ;
+
         // checkout and shipping
         Route::post('/checkout/preview' , [CheckoutController::class , 'preview']);
         Route::post('/checkout' , [CheckoutController::class , 'checkout']);
@@ -100,13 +106,20 @@ Route::group(['prefix'=> 'v1'] , function () {
         Route::post('posts/{post}/share' , [ShareController::class , 'share']);
         Route::delete('posts/{post}/share' , [ShareController::class , 'unshare']);
 
+        Route::get('/users/{id}/follow-toggle' , [FollowController::class , 'toggle']) ;
+        Route::get('/users/{id}/followers' , [FollowController::class , 'followers']) ;
+        Route::get('/users/{id}/following' , [FollowController::class , 'following']) ;
+        Route::get('/users/{id}/follow-stats' , [FollowController::class , 'stats']) ;
+        // Route::get('/me/mutual-follows' , [FollowController::class , 'mutualFollows']) ;
 
 
         Route::prefix('user')->group(function () {
             Route::get('/profile', [UserController::class ,'profile']) ;
+            Route::get('/profile/{id}', [UserController::class ,'anyProfile']) ;
             Route::put('/profile', [UserController::class ,'updateProfile']) ;
-
+            Route::patch('change-password', [ChangePasswordController::class, 'update']) ;
         });
+
         Route::get('user/library', [BookReadingProgressController::class, 'library']);
     });
 }) ;

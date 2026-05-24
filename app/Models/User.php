@@ -27,7 +27,8 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
         'social_id',
         'is_author',
         'is_active',
-        'email_verified_at'
+        'email_verified_at',
+        'bio'
     ];
 
     protected $hidden = [
@@ -39,6 +40,8 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
         'email_verified_at' => 'datetime',
         'password' => 'hashed'
     ];
+
+    public $appends = ['avatar_url'];
 
 
     public function scopeSearch($query, $value)
@@ -65,6 +68,21 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
         return $query;
     }
 
+
+    public function following()
+    {
+        return $this->belongsToMany(
+            User::class, 'followers', 'follower_id', 'following_id'
+        )->withTimestamps();
+    }
+
+    public function followers()
+    {
+        return $this->belongsToMany(
+            User::class, 'followers', 'following_id', 'follower_id'
+        )->withTimestamps();
+    }
+
     public function orders()
     {
         return $this->hasMany(Order::class);
@@ -73,6 +91,11 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
     public function userBooks()
     {
         return $this->hasMany(UserBook::class);
+    }
+
+    public function authorBooks()
+    {
+        return $this->hasMany(Book::class, 'author_id');
     }
 
     public function subscriptions()
@@ -88,6 +111,11 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
     public function payments()
     {
         return $this->hasMany(Payment::class);
+    }
+
+    public function readingProgress()
+    {
+        return $this->hasMany(BookReadingProgress::class);
     }
 
 
@@ -111,6 +139,55 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
             ->where('book_id', $bookId)
             ->active()
             ->exists();
+    }
+
+
+
+    public function follow(int $userId): void
+    {
+        if ($userId === $this->id) return;
+        $this->following()->syncWithoutDetaching([$userId]);
+    }
+
+    public function unfollow(int $userId): void
+    {
+        $this->following()->detach($userId);
+    }
+
+
+    public function toggleFollow(int $userId): string
+    {
+        if ($this->isFollowing($userId)) {
+            $this->unfollow($userId);
+            return 'unfollowed';
+        }
+        $this->follow($userId);
+        return 'followed';
+    }
+
+    public function isFollowing(int $userId): bool
+    {
+        return $this->following()->where('following_id', $userId)->exists();
+    }
+
+    public function isFollowedBy(int $userId): bool
+    {
+        return $this->followers()->where('follower_id', $userId)->exists();
+    }
+
+    public function isMutualFollow(int $userId): bool
+    {
+        return $this->isFollowing($userId) && $this->isFollowedBy($userId);
+    }
+
+    public function followersCount(): int
+    {
+        return $this->followers()->count();
+    }
+
+    public function followingCount(): int
+    {
+        return $this->following()->count();
     }
 
 
