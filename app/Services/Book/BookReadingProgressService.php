@@ -45,13 +45,19 @@ class BookReadingProgressService
         return BookReadingProgress::query()->where('user_id', $user->id)->where('book_id', $book->id)->firstorfail();
     }
 
-    public function getUserLibrary(User $user)
+    public function getUserLibrary(User $user , $status)
     {
-        return BookReadingProgress::query()
-            ->with('book:id,title,total_pages')
-            ->where('user_id', $user->id)
-            ->orderByDesc('last_read_at')
-            ->get();
+        $query = BookReadingProgress::query()
+                    ->with('book:id,title,total_pages,cover')
+                    ->where('user_id', $user->id);
+
+        match ($status) {
+            'reading' => $query->where('status', 'reading'),
+            'completed' => $query->where('status', 'completed'),
+            'recent' => $query->latest(),
+            default => $query->orderByDesc('last_read_at'),
+        };
+        return $query->get();
     }
 
 }

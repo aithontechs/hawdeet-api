@@ -107,7 +107,7 @@ Route::group(['prefix'=> 'v1'] , function () {
             Route::put('/profile', [UserController::class ,'updateProfile']) ;
 
         });
-        // Route::get('user/library', [BookReadingProgressController::class, 'library']);
+        Route::get('user/library', [BookReadingProgressController::class, 'library']);
     });
 }) ;
 

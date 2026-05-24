@@ -17,6 +17,14 @@ class BookReadingProgressController extends Controller
         private readonly BookReadingProgressService $progressService
     ) {}
 
+
+    public function library(Request $request)
+    {
+        $status = $request->status ?? 'all';
+        $myLibrary = $this->progressService->getUserLibrary(auth('user-api')->user() , $status);
+        return $this->successApi($myLibrary, 'User library fetched successfully');
+    }
+
     public function update(UpdateReadingProgressRequest $request, Book $book): JsonResponse
     {
         $this->authorize("access", $book);
