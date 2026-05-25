@@ -28,5 +28,8 @@ class AppServiceProvider extends ServiceProvider
         BookReview::observe(BookReviewObserver::class);
         UserSubscription::observe(UserSubscriptionObserver::class);
         UserBook::observe(UserBookObserver::class);
+        //specify long string
+            \Illuminate\Database\Schema\Builder::defaultStringLength(191);
+
     }
 }

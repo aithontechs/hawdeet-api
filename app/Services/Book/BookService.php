@@ -140,7 +140,6 @@ class BookService
         );
     }
 
-    // باقي الـ methods فضلت زي ما هي
     public function uploadCover(UploadedFile $file): string
     {
         return $this->storage->upload($file, self::COVER_FOLDER, StorageService::DISK_PUBLIC);

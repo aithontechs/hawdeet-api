@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\Application\Setting\ChangePasswordController;
 use App\Http\Controllers\Application\Auth\{LoginController , LogoutController, RegisterController , ResetPasswordController, SocialiteController, VerificationController};
 use App\Http\Controllers\Application\Auth\ForgotPasswordController;
 use App\Http\Controllers\Application\Book\BookController;
@@ -16,7 +15,9 @@ use App\Http\Controllers\Application\Community\LikeController;
 use App\Http\Controllers\Application\Community\PostController;
 use App\Http\Controllers\Application\Community\ShareController;
 use App\Http\Controllers\Application\Follow\FollowController;
+use App\Http\Controllers\Application\Home\HomeController;
 use App\Http\Controllers\Application\Payment\PaymentController;
+use App\Http\Controllers\Application\Setting\ChangePasswordController;
 use App\Http\Controllers\Application\Shipping\ShippingAddressController;
 use App\Http\Controllers\Application\Subscription\SubscriptionController;
 use App\Http\Controllers\Application\User\UserController;
@@ -40,28 +41,31 @@ Route::group(['prefix'=> 'v1'] , function () {
 
     // Route of Guest
 
-    // books
-    Route::get('books' , [BookController::class , 'index']);
+    // Home  & Books
+    Route::get('home' , [HomeController::class , 'index']) ;
+    Route::get('/home/categories/{category}/books',  [HomeController::class, 'categoryBooks']);
+    Route::get('categories' , [CategoryController::class , 'index']) ;
     Route::get('categories/{category}/books' , [BookController::class , 'booksByCategory']);
 
 
-    //Guest
+    // filters
+    Route::prefix('books')->group(function () {
+        Route::get('/',        [BookController::class, 'index']);
+        Route::get('/authors', [BookController::class, 'authors']);
+        Route::get('/{book}', [BookController::class, 'show']);
+    });
+
+
     // Carts & Checkout
     Route::apiResource('carts' , CartController::class)->except(['update' , 'show']);
     Route::get('subscription-plans' , [SubscriptionController::class , 'index']) ;
     Route::get('books/{book}/preview/page/{page}', [BookReaderController::class, 'preview']);
-
-    Route::post('payments/card' , [PaymentController::class , 'payWithCard']);
-    Route::post('payments/wallet' , [PaymentController::class , 'payWithWallet']);
-
 
     Route::post('/payments/webhook', [PaymentController::class, 'webhook']);
     Route::get('/payments/callback', [PaymentController::class, 'callback']);
 
     // Auth
     Route::middleware(['auth:user-api' , 'verified'])->group(function () {
-
-        Route::get('categories' , [CategoryController::class , 'index']) ;
 
         // checkout and shipping
         Route::post('/checkout/preview' , [CheckoutController::class , 'preview']);

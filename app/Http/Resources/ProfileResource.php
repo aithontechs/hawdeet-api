@@ -20,6 +20,7 @@ class ProfileResource extends JsonResource
         return [
             'id'     => $this->id,
             'name'   => $this->name,
+            'email'  => $this->email,
             'bio'    => $this->bio,
             'avatar_url' => $this->avatar_url,
             'is_author'  => $this->is_author,

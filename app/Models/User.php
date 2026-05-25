@@ -41,7 +41,7 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
         'password' => 'hashed'
     ];
 
-    public $appends = ['avatar_url'];
+    // public $appends = ['avatar_url'];
 
 
     public function scopeSearch($query, $value)

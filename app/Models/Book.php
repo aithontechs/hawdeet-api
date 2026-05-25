@@ -84,7 +84,10 @@ class Book extends Model
     public function scopeSearch(Builder $query, $filters)
     {
         return $query->when($filters['search'] ?? null, function ($q, $search) {
-                $q->where('title', 'like', "%{$search}%");
+                $q->where('title', 'like', "%{$search}%")
+                    ->orWhereHas('author', function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%");
+                });
             })
             ->when($filters['sort'] ?? null, function ($q, $sort) {
                 if ($sort === 'price_asc') {
