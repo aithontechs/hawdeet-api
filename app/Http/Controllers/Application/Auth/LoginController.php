@@ -3,13 +3,16 @@
 namespace App\Http\Controllers\Application\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\Cart\CartService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
-use App\Models\User;
 
 class LoginController extends Controller
 {
     use ResponseApi ;
+
+    public function __construct(private CartService $cartService) {}
 
     public function login(Request $request)
     {
@@ -33,6 +36,11 @@ class LoginController extends Controller
 
         if (! $user->hasVerifiedEmail()) {
             return $this->errorApi('Please verify your email first' , 403) ;
+        }
+
+        $guestToken = $request->header('X-Guest-Token') ?? $request->input('guest_token');
+        if ($guestToken) {
+            $this->cartService->mergeGuestCart($guestToken, $user);
         }
 
         $data =  $this->respondWithToken($token);

@@ -7,8 +7,10 @@ use App\Http\Controllers\Application\Book\BookHighlightController;
 use App\Http\Controllers\Application\Book\BookReaderController;
 use App\Http\Controllers\Application\Book\BookReadingProgressController;
 use App\Http\Controllers\Application\Book\BookReviewController;
+use App\Http\Controllers\Application\BroadCast\BroadCastController;
 use App\Http\Controllers\Application\Cart\CartController;
 use App\Http\Controllers\Application\Category\CategoryController;
+use App\Http\Controllers\Application\Chat\ChatController;
 use App\Http\Controllers\Application\Checkout\CheckoutController;
 use App\Http\Controllers\Application\Community\CommentController;
 use App\Http\Controllers\Application\Community\LikeController;
@@ -16,6 +18,7 @@ use App\Http\Controllers\Application\Community\PostController;
 use App\Http\Controllers\Application\Community\ShareController;
 use App\Http\Controllers\Application\Follow\FollowController;
 use App\Http\Controllers\Application\Home\HomeController;
+use App\Http\Controllers\Application\Notification\NotificationController;
 use App\Http\Controllers\Application\Payment\PaymentController;
 use App\Http\Controllers\Application\Setting\ChangePasswordController;
 use App\Http\Controllers\Application\Shipping\ShippingAddressController;
@@ -58,6 +61,7 @@ Route::group(['prefix'=> 'v1'] , function () {
 
     // Carts & Checkout
     Route::apiResource('carts' , CartController::class)->except(['update' , 'show']);
+    Route::patch('carts/{cartId}/quantity', [CartController::class, 'updateQuantity']);
     Route::get('subscription-plans' , [SubscriptionController::class , 'index']) ;
     Route::get('books/{book}/preview/page/{page}', [BookReaderController::class, 'preview']);
 
@@ -117,6 +121,7 @@ Route::group(['prefix'=> 'v1'] , function () {
         // Route::get('/me/mutual-follows' , [FollowController::class , 'mutualFollows']) ;
 
 
+        // profile
         Route::prefix('user')->group(function () {
             Route::get('/profile', [UserController::class ,'profile']) ;
             Route::get('/profile/{id}', [UserController::class ,'anyProfile']) ;
@@ -125,6 +130,25 @@ Route::group(['prefix'=> 'v1'] , function () {
         });
 
         Route::get('user/library', [BookReadingProgressController::class, 'library']);
+
+        // Notifications
+        Route::prefix('notifications')->group(function () {
+            Route::get('/',    [NotificationController::class, 'index']);
+            Route::get('/unread',  [NotificationController::class, 'unread']);
+            Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+            Route::post('/{id}/mark-read',[NotificationController::class, 'markAsRead']);
+            Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead']);
+            Route::delete('/{id}',  [NotificationController::class, 'destroy']);
+        });
+        Route::post('/broadcasting/auth', [BroadCastController::class , 'auth']);
+
+        // Chat
+        Route::prefix('chat')->group(function () {
+            Route::get('/', [ChatController::class, 'index']);
+            Route::post('/',  [ChatController::class, 'store']);
+            Route::post('/mark-read', [ChatController::class, 'markAsRead']);
+        });
+
     });
 }) ;
 

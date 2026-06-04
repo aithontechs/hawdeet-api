@@ -18,7 +18,7 @@ class CartController extends Controller
 
     public function index(Request $request)
     {
-        $cookieId = $this->cartService->getOrCreateCookieId();
+        $cookieId = $this->cartService->getOrCreateCookieId($request);
         $user     = auth('user-api')->user();
 
         $items = $this->cartService->getItems($cookieId, $user);
@@ -29,6 +29,7 @@ class CartController extends Controller
                 'total'      => $total,
                 'item_count' => $items->count(),
                 'is_guest'   => is_null($user),
+                'guest_token' => $cookieId,
             ],'Carts fetched successfully') ;
     }
 
@@ -39,16 +40,16 @@ class CartController extends Controller
             'item_type' => 'required|in:digital,physical',
             'quantity'  => 'integer|min:1|max:99',
         ]);
-        $cookieId = $this->cartService->getOrCreateCookieId();
+        $cookieId = $this->cartService->getOrCreateCookieId($request);
         $user     = auth('user-api')->user() ;
         $cartItem = $this->cartService->addItem(cookieId: $cookieId,bookId: $request->book_id,itemType: $request->input('item_type', 'digital'),quantity: $request->input('quantity', 1),user:$user);
-        return $this->successApi($cartItem , 'Cart added successfully' , 201);
+        return $this->successApi($cartItem, 'Cart added successfully' , 201);
     }
 
-    public function destroy($cartId)
+    public function destroy(Request $request , $cartId)
     {
         $user = auth('user-api')->user();
-        $cookieId = $this->cartService->getOrCreateCookieId();
+        $cookieId = $this->cartService->getOrCreateCookieId($request);
         $removed = $this->cartService->removeItem($cartId, $cookieId, $user);
         if (! $removed) {
             return $this->errorApi('Unauthorized or item not found', 403);
@@ -64,7 +65,7 @@ class CartController extends Controller
         ]);
 
         $user     = auth('user-api')->user();
-        $cookieId = $this->cartService->getOrCreateCookieId();
+        $cookieId = $this->cartService->getOrCreateCookieId($request);
         $total    = $this->cartService->getTotal($cookieId, $user);
 
         $coupon   = $this->couponService->validate($request->coupon_code, $total, $user);
@@ -76,6 +77,27 @@ class CartController extends Controller
             'final_total'     => $total - $discount,
             'coupon_code'     => $coupon->code,
         ], 'Coupon applied successfully');
+    }
+
+    public function updateQuantity(Request $request, $cartId)
+    {
+        $request->validate([
+            'action' => 'required|in:increment,decrement',
+        ]);
+
+        $user     = auth('user-api')->user();
+        $cookieId = $this->cartService->getOrCreateCookieId($request);
+
+        $result = $this->cartService->updateQuantity(
+            cartId:   $cartId,
+            action:   $request->action,
+            cookieId: $cookieId,
+            user:     $user
+        );
+
+        $message = $result['removed'] ? 'Item removed from cart' : 'Quantity updated successfully';
+
+        return $this->successApi($result, $message);
     }
 
 }

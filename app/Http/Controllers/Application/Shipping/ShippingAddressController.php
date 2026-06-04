@@ -27,63 +27,61 @@ class ShippingAddressController extends Controller
     {
         $data = $request->validate([
             'shipping_zone_id' => 'required|exists:shipping_zones,id',
-            'recipient_name'   => 'required|string|max:255',
+            'recipient_name'   => 'nullable|string|max:255',
             'phone'            => 'required|digits:11',
             'address_line'     => 'required|string|max:500',
             'city'             => 'required|string|max:100',
-            'is_default'       => 'boolean',
         ]);
 
         $user = auth('user-api')->user();
 
-        $address = DB::transaction(function () use ($user, $data) {
-            if (!empty($data['is_default'])) {
-                $user->shippingAddresses()->update(['is_default' => false]);
-            }
-            $isFirst = $user->shippingAddresses()->doesntExist();
+        $data['recipient_name'] = $data['recipient_name'] ?? $user->name;
+        $data['phone']          = $data['phone']          ?? $user->phone;
 
-            return $user->shippingAddresses()->create([
+        $address = $user->shippingAddresses()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
                 ...$data,
                 'country'    => 'EG',
-                'is_default' => $data['is_default'] ?? $isFirst,
-            ]);
-        });
+                'is_default' => true,
+            ]
+        );
 
         return $this->successApi(
             $address->load('zone:id,name,cost'),
-            'Address added successfully',
-            201
+            $address->wasRecentlyCreated ? 'Address added successfully' : 'Address updated successfully',
+            $address->wasRecentlyCreated ? 201 : 200
         );
     }
 
-    public function update(Request $request, ShippingAddress $address)
-    {
-        if ($address->user_id != auth('user-api')->user()->id) {
-            return $this->errorApi('Unauthorized', 403);
-        }
+    // public function update(Request $request, ShippingAddress $address)
+    // {
+    //     if ($address->user_id != auth('user-api')->user()->id) {
+    //         return $this->errorApi('Unauthorized', 403);
+    //     }
 
-        $data = $request->validate([
-            'shipping_zone_id' => 'sometimes|exists:shipping_zones,id',
-            'recipient_name'   => 'sometimes|string|max:255',
-            'phone'            => 'sometimes|digits:11',
-            'address_line'     => 'sometimes|string|max:500',
-            'city'             => 'sometimes|string|max:100',
-        ]);
+    //     $data = $request->validate([
+    //         'shipping_zone_id' => 'sometimes|exists:shipping_zones,id',
+    //         'recipient_name'   => 'sometimes|string|max:255',
+    //         'phone'            => 'sometimes|digits:11',
+    //         'address_line'     => 'sometimes|string|max:500',
+    //         'city'             => 'sometimes|string|max:100',
+    //     ]);
 
-        DB::transaction(function () use ($address, $data) {
-            if (!empty($data['is_default'])) {
-                $address->user->shippingAddresses()
-                    ->where('id', '!=', $address->id)
-                    ->update(['is_default' => false]);
-            }
-            $address->update($data);
-        });
+    //     DB::transaction(function () use ($address, $data) {
+    //         if (!empty($data['is_default'])) {
+    //             $address->user->shippingAddresses()
+    //                 ->where('id', '!=', $address->id)
+    //                 ->update(['is_default' => false]);
+    //         }
+    //         $address->update($data);
+    //     });
 
-        return $this->successApi(
-            $address->fresh()->load('zone:id,name,cost'),
-            'Address updated successfully'
-        );
-    }
+    //     return $this->successApi(
+    //         $address->fresh()->load('zone:id,name,cost'),
+    //         'Address updated successfully'
+    //     );
+    // }
 
 
     // public function destroy(ShippingAddress $shippingAddress)

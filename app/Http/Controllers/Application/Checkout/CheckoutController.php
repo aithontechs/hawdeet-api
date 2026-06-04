@@ -41,7 +41,7 @@ class CheckoutController extends Controller
         ]);
 
         $user     = auth('user-api')->user();
-        $cookieId = $this->cartService->getOrCreateCookieId();
+        $cookieId = $this->cartService->getOrCreateCookieId($request);
         $items    = $this->cartService->getItems($cookieId, $user);
 
         if ($items->isEmpty()) {
@@ -116,7 +116,7 @@ class CheckoutController extends Controller
     public function checkout(CheckoutRequest $request)
     {
         $user     = auth('user-api')->user();
-        $cookieId = $this->cartService->getOrCreateCookieId();
+        $cookieId = $this->cartService->getOrCreateCookieId($request);
         $items    = $this->cartService->getItems($cookieId, $user);
 
         if ($items->isEmpty()) {

@@ -37,7 +37,7 @@ class BookController extends Controller
     public function store(BookStoreRequest $request)
     {
         $book = $this->bookService->create($request->validated(),$request->file('cover'),$request->file('file'));
-        return $this->successApi($book ,'Book created successfully.' , 201) ;
+        return $this->successApi($book,$book->file ? 'Book created. File is being processed.' : 'Book created successfully.',201);
     }
 
 

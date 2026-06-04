@@ -136,8 +136,8 @@ class HomeController extends Controller
         }
 
         return $query->orderByDesc('avg_rating')->limit(10)->get()
-                        ->map(fn($book) => $this->formatBook($book, $accessContext))
-                        ->toArray();
+                    ->flatMap(fn($book) => $this->expandBook($book, $accessContext))
+                    ->toArray();
     }
 
     public function categoryBooks(Category $category)
@@ -159,11 +159,13 @@ class HomeController extends Controller
                     ->orderByDesc('avg_rating')
                     ->paginate(10);
 
-        $books->through(fn($book) => $this->formatBook($book, $accessContext));
+        $formattedBooks = collect($books->items())
+            ->flatMap(fn($book) => $this->expandBook($book, $accessContext))
+            ->values();
 
         return $this->successApi([
             'category'   => ['id' => $category->id, 'name' => $category->name],
-            'books'      => $books->items(),
+            'books'      => $formattedBooks,
             'pagination' => [
                 'current_page'  => $books->currentPage(),
                 'last_page'     => $books->lastPage(),
@@ -175,18 +177,57 @@ class HomeController extends Controller
         ], 'Category books fetched successfully');
     }
 
-    private function formatBook(Book $book, array $accessContext): array
+    private function formatBook(Book $book, array $accessContext, string $typeOverride = null): array
     {
         $hasDirect          = in_array($book->id, $accessContext['accessibleBookIds']);
         $hasViaSubscription = $accessContext['hasSubscription'] && $book->is_subscription_included;
 
-        return array_merge($book->toArray(), [
+        $type = $typeOverride ?? $book->type;
+
+        $data = [
+            'id'                       => $book->id,
+            'title'                    => $book->title,
+            'type'                     => $type,
+            'avg_rating'               => $book->avg_rating,
+            'author_id'                => $book->author_id,
+            'is_subscription_included' => $book->is_subscription_included,
+            'is_free'                  => $book->is_free,
+            'cover_url'                => $book->cover_url,
+            'author'                   => $book->author ? ['id' => $book->author->id, 'name' => $book->author->name] : null,
             'access' => [
                 'has_access'       => $hasDirect || $hasViaSubscription || $book->is_free,
                 'via_purchase'     => $hasDirect,
                 'via_subscription' => $hasViaSubscription,
                 'has_subscription' => $accessContext['hasSubscription'],
             ],
-        ]);
+        ];
+
+        if ($type === 'digital') {
+            $data['price']                  = $book->price;
+            $data['compare_price']          = $book->compare_price;
+            $data['physical_price']         = null;
+            $data['physical_compare_price'] = null;
+            $data['physical_stock']         = 0;
+        } elseif ($type === 'physical') {
+            $data['price']                  = null;
+            $data['compare_price']          = null;
+            $data['physical_price']         = $book->physical_price;
+            $data['physical_compare_price'] = $book->physical_compare_price;
+            $data['physical_stock']         = $book->physical_stock;
+        }
+
+        return $data;
+    }
+
+    private function expandBook(Book $book, array $accessContext): array
+    {
+        if ($book->type === 'both') {
+            return [
+                $this->formatBook($book, $accessContext, 'digital'),
+                $this->formatBook($book, $accessContext, 'physical'),
+            ];
+        }
+
+        return [$this->formatBook($book, $accessContext)];
     }
 }

@@ -8,16 +8,15 @@ use App\Models\UserSubscription;
 use App\Observers\BookReviewObserver;
 use App\Observers\UserBookObserver;
 use App\Observers\UserSubscriptionObserver;
+use App\Services\Pusher\PusherService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
+
     public function register(): void
     {
-        //
+        $this->app->singleton(PusherService::class, fn() => new PusherService());
     }
 
     /**

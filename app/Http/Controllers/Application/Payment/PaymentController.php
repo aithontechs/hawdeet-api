@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Application\Payment;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
+use App\Notifications\PaymentSuccessNotification;
 use App\Services\Cart\CartService;
 use App\Services\Payment\PaymobService;
 use App\Services\Purchase\BookAccessGrantService;
@@ -164,6 +165,11 @@ class PaymentController extends Controller
         $this->cartService->clearCart(null, $order->user_id);
         $order->update(['payment_status' => 'paid' , 'paid_at' => now()]);
         Cache::forget("user_books:{$order->user_id}");
+        $order->user->notify(new PaymentSuccessNotification(
+            message: 'تم الدفع بنجاح وتم تفعيل طلبك!',
+            type: 'order',
+            referenceId: $order->id
+        ));
         Log::info("Order #{$order->order_number} paid.");
     }
 
@@ -175,6 +181,11 @@ class PaymentController extends Controller
         if (!$subscription || $subscription->payment_status === 'paid') return;
 
         $this->subscriptionService->activate($payment);
+        $subscription->user->notify(new PaymentSuccessNotification(
+            message: 'تم تفعيل اشتراكك بنجاح!',
+            type: 'subscription',
+            referenceId: $subscription->id
+        ));
         Log::info("Subscription #{$subscription->id} activated via Paymob webhook.");
     }
 }

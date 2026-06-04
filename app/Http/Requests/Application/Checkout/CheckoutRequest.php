@@ -14,10 +14,14 @@ class CheckoutRequest extends FormRequest
             'payment_method'    => ['required', 'in:card,wallet'],
             'coupon_code'       => ['nullable', 'string'],
 
-            'first_name' => ['required', 'string', 'max:100'],
-            'last_name'  => ['required', 'string', 'max:100'],
-            'email'      => ['required', 'email'],
-            'phone'      => ['required', 'digits:11'],
+            'first_name' => ['nullable', 'string', 'max:100'],
+            'last_name'  => ['nullable', 'string', 'max:100'],
+            'email'      => ['nullable', 'email'],
+            'phone' => [
+                'required_if:payment_method,wallet',
+                'nullable',
+                'digits:11',
+            ],
         ];
     }
 }

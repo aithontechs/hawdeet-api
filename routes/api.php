@@ -5,7 +5,9 @@ use App\Http\Controllers\Dashboard\Auth\{AuthController ,ForgotPasswordControlle
 use App\Http\Controllers\Dashboard\Authorization\{PermissionController , RoleController };
 use App\Http\Controllers\Dashboard\Book\BookController;
 use App\Http\Controllers\Dashboard\Category\CategoryController;
+use App\Http\Controllers\Dashboard\Chat\AdminChatController;
 use App\Http\Controllers\Dashboard\Coupon\CouponController;
+use App\Http\Controllers\Dashboard\Notification\AdminNotificationController;
 use App\Http\Controllers\Dashboard\Order\OrderController;
 use App\Http\Controllers\Dashboard\Settings\ProfileController;
 use App\Http\Controllers\Dashboard\Shipping\ShippingZoneController;
@@ -62,6 +64,17 @@ Route::group(['prefix'=> 'v1/admin'], function () {
 
 
         Route::apiResource('admins' , AdminController::class)->except(['show']) ;
+
+        Route::post('/notifications/broadcast', [AdminNotificationController::class, 'broadcast']);
+
+
+        Route::prefix('chat')->group(function () {
+            Route::get('/conversations', [AdminChatController::class, 'conversations']);
+            Route::get('/{user}', [AdminChatController::class, 'show']);
+            Route::post('/{user}', [AdminChatController::class, 'store']);
+            Route::post('/{user}/mark-read',[AdminChatController::class, 'markAsRead']);
+        });
+
 
 
     });
