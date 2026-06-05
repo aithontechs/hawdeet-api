@@ -172,39 +172,42 @@ class PaymobService
 
     public function verifyHmacFromObj(array $obj, string $receivedHmac): bool
     {
-        $fields = [
-            'amount_cents', 'created_at', 'currency', 'error_occured',
-            'has_parent_transaction', 'id', 'integration_id', 'is_3d_secure',
-            'is_auth', 'is_capture', 'is_refunded', 'is_standalone_payment',
-            'is_voided', 'order', 'owner', 'pending', 'success',
-        ];
+        $getValue = function($key) use ($obj) {
+            $value = $obj[$key] ?? '';
+            if (is_bool($value)) return $value ? 'true' : 'false';
+            if (is_null($value)) return '';
+            return (string) $value;
+        };
 
         $hashString = '';
-        foreach ($fields as $field) {
-            if ($field === 'order') {
-                $hashString .= $obj['order']['id'] ?? '';
-            } else {
-                $value = $obj[$field] ?? '';
-                if (is_bool($value)) {
-                    $value = $value ? 'true' : 'false';
-                }
-                $hashString .= $value;
-            }
-        }
-
-        $hashString .= $obj['source_data']['pan']      ?? '';
-        $hashString .= $obj['source_data']['sub_type'] ?? '';
-        $hashString .= $obj['source_data']['type']     ?? '';
-
-        $computed = hash_hmac('sha512', $hashString, config('paymob.hmac_secret'));
+        $hashString .= $getValue('amount_cents');
+        $hashString .= $getValue('created_at');
+        $hashString .= $getValue('currency');
+        $hashString .= $getValue('error_occured');
+        $hashString .= $getValue('has_parent_transaction');
+        $hashString .= $getValue('id');
+        $hashString .= $getValue('integration_id');
+        $hashString .= $getValue('is_3d_secure');
+        $hashString .= $getValue('is_auth');
+        $hashString .= $getValue('is_capture');
+        $hashString .= $getValue('is_refunded');
+        $hashString .= $getValue('is_standalone_payment');
+        $hashString .= $getValue('is_voided');
+        $hashString .= (string) ($obj['order']['id'] ?? '');
+        $hashString .= $getValue('owner');
+        $hashString .= $getValue('pending');
+        $hashString .= $getValue('success');
+        $hashString .= (string) ($obj['source_data']['pan']      ?? '');
+        $hashString .= (string) ($obj['source_data']['sub_type'] ?? '');
+        $hashString .= (string) ($obj['source_data']['type']     ?? '');
 
         Log::info('HMAC Debug', [
             'hash_string' => $hashString,
-            'computed'    => $computed,
+            'computed'    => hash_hmac('sha512', $hashString, config('paymob.hmac_secret')),
             'received'    => $receivedHmac,
-            'match'       => hash_equals($computed, $receivedHmac),
         ]);
 
+        $computed = hash_hmac('sha512', $hashString, config('paymob.hmac_secret'));
         return hash_equals($computed, $receivedHmac);
     }
 
