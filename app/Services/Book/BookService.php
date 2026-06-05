@@ -96,51 +96,48 @@ class BookService
     // }
 
     public function create(array $data, UploadedFile $coverFile, ?UploadedFile $bookFile): Book
-{
-    return DB::transaction(function () use ($data, $coverFile, $bookFile) {
-        $user = User::findOrFail($data['author_id']);
-        abort_if(!$user->is_author, 403, 'This user is not an author.');
+    {
+        return DB::transaction(function () use ($data, $coverFile, $bookFile) {
+            $user = User::findOrFail($data['author_id']);
+            abort_if(!$user->is_author, 403, 'This user is not an author.');
 
-        $type = $data['type'] ?? 'digital';
+            $type = $data['type'] ?? 'digital';
 
-        // ✅ cover بس في الـ request (صغير)
-        $data['cover']          = $this->storage->upload($coverFile, self::COVER_FOLDER, StorageService::DISK_PUBLIC);
-        $data['slug']           = $data['slug'] ?? Str::slug($data['title']);
-        $data['uploaded_by']    = auth()->id();
-        $data['file_processed'] = false;
+            $data['cover']          = $this->storage->upload($coverFile, self::COVER_FOLDER, StorageService::DISK_PUBLIC);
+            $data['slug']           = $data['slug'] ?? Str::slug($data['title']);
+            $data['uploaded_by']    = auth()->id();
+            $data['file_processed'] = false;
 
-        $previewStart = $data['preview_start_page'] ?? 1;
-        $previewEnd   = $data['preview_end_page'] ?? 10;
+            $previewStart = $data['preview_start_page'] ?? 1;
+            $previewEnd   = $data['preview_end_page'] ?? 10;
 
-        // ✅ احفظ الـ PDF في tmp فقط بدون upload
-        $tmpPath = null;
-        if (in_array($type, ['digital', 'both'])) {
-            abort_unless($bookFile, 422, 'Book file is required for digital books.');
-            $tmpPath = $bookFile->store('pending_books', 'local'); // disk مؤقت local
-        }
+            $tmpPath = null;
+            if (in_array($type, ['digital', 'both'])) {
+                abort_unless($bookFile, 422, 'Book file is required for digital books.');
+                $tmpPath = $bookFile->store('pending_books', 'local');
+            }
 
-        $categoryIds = $data['category_ids'] ?? [];
-        unset($data['category_ids'], $data['preview_start_page'], $data['preview_end_page']);
+            $categoryIds = $data['category_ids'] ?? [];
+            unset($data['category_ids'], $data['preview_start_page'], $data['preview_end_page']);
 
-        $book = Book::create($data);
+            $book = Book::create($data);
 
-        if (!empty($categoryIds)) {
-            $book->categories()->sync($categoryIds);
-        }
+            if (!empty($categoryIds)) {
+                $book->categories()->sync($categoryIds);
+            }
 
-        // ✅ بعت الـ Job مع الـ tmp path
-        if ($tmpPath) {
-            ProcessBookFiles::dispatch(
-                $book->id,
-                $tmpPath,
-                $previewStart,
-                $previewEnd,
-            )->afterCommit();
-        }
+            if ($tmpPath) {
+                ProcessBookFiles::dispatch(
+                    $book->id,
+                    $tmpPath,
+                    $previewStart,
+                    $previewEnd,
+                )->afterCommit();
+            }
 
-        return $book->load('categories');
-    });
-}
+            return $book->load('categories');
+        });
+    }
 
     public function update(Book $book, array $data, ?UploadedFile $coverFile, ?UploadedFile $bookFile)
     {

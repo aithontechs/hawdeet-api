@@ -12,6 +12,9 @@ class BookPolicy extends ModelPolicy
 
     public function access(User $user, Book $book): bool
     {
+        if (!$book->is_published) {
+            return false;
+        }
         if ($book->is_free) {
             return true;
         }
