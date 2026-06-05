@@ -16,6 +16,7 @@ class ChatMessageResource extends JsonResource
             'is_read'     => !is_null($this->read_at),
             'read_at'     => $this->read_at?->diffForHumans(),
             'created_at'  => $this->created_at->diffForHumans(),
+            // 'updated_at'  => $this->updated_at?->diffForHumans(),
         ];
     }
 }

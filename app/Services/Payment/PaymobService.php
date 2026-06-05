@@ -151,13 +151,17 @@ class PaymobService
             'has_parent_transaction', 'id', 'integration_id', 'is_3d_secure',
             'is_auth', 'is_capture', 'is_refunded', 'is_standalone_payment',
             'is_voided', 'order', 'owner', 'pending',
-            'source_data_pan', 'source_data_sub_type', 'source_data_type', 'success',
+            'success',
         ];
 
         $hashString = '';
         foreach ($fields as $field) {
             $hashString .= $data[$field] ?? '';
         }
+
+        $hashString .= $data['source_data.pan']      ?? '';
+        $hashString .= $data['source_data.sub_type'] ?? '';
+        $hashString .= $data['source_data.type']     ?? '';
 
         $computed = hash_hmac('sha512', $hashString, config('paymob.hmac_secret'));
 

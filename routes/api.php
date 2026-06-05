@@ -9,6 +9,7 @@ use App\Http\Controllers\Dashboard\Chat\AdminChatController;
 use App\Http\Controllers\Dashboard\Coupon\CouponController;
 use App\Http\Controllers\Dashboard\Notification\AdminNotificationController;
 use App\Http\Controllers\Dashboard\Order\OrderController;
+use App\Http\Controllers\Dashboard\Payment\PaymentController;
 use App\Http\Controllers\Dashboard\Settings\ProfileController;
 use App\Http\Controllers\Dashboard\Shipping\ShippingZoneController;
 use App\Http\Controllers\Dashboard\Subscription\{SubscriptionPlanController , UserSubscriptionController };
@@ -64,6 +65,8 @@ Route::group(['prefix'=> 'v1/admin'], function () {
 
 
         Route::apiResource('admins' , AdminController::class)->except(['show']) ;
+        Route::get('payments' , [PaymentController::class , 'index']) ;
+
 
         Route::post('/notifications/broadcast', [AdminNotificationController::class, 'broadcast']);
 
@@ -72,6 +75,8 @@ Route::group(['prefix'=> 'v1/admin'], function () {
             Route::get('/conversations', [AdminChatController::class, 'conversations']);
             Route::get('/{user}', [AdminChatController::class, 'show']);
             Route::post('/{user}', [AdminChatController::class, 'store']);
+            Route::patch('message/{message}',  [AdminChatController::class, 'update']);
+            Route::delete('message/{message}',  [AdminChatController::class, 'destroy']);
             Route::post('/{user}/mark-read',[AdminChatController::class, 'markAsRead']);
         });
 

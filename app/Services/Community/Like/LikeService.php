@@ -4,6 +4,7 @@ namespace App\Services\Community\Like ;
 
 use App\Models\Admin;
 use App\Models\Comment;
+use App\Models\CouncilComment;
 use App\Models\Like;
 use App\Models\Post;
 use App\Models\User;
@@ -13,15 +14,15 @@ class LikeService
 {
     public function __construct(private readonly RateLimiter $limiter) {}
 
-    public function toggle(User|Admin $actor, Post|Comment $likeable)
+    public function toggle(User|Admin $actor, Post|Comment|CouncilComment $likeable)
     {
         $key = $this->rateLimitKey($actor, $likeable);
 
         if ($this->limiter->tooManyAttempts($key, maxAttempts: 3)) {
             $seconds = $this->limiter->availableIn($key);
-            abort(429, "You are blocked from liking . Try again after $seconds seconds.");       
+            abort(429, "You are blocked from liking . Try again after $seconds seconds.");
         }
-        
+
         $this->limiter->hit($key, decaySeconds: 20);
         $existing = Like::query()->where('liker_type', get_class($actor))
                             ->where('liker_id',   $actor->id)
@@ -45,10 +46,10 @@ class LikeService
         return ['liked' => true, 'likes_count' => $likeable->likes_count];
     }
 
-    private function rateLimitKey(User|Admin $actor, Post|Comment $likeable): string
+    private function rateLimitKey(User|Admin $actor, Post|Comment|CouncilComment $likeable): string
     {
         $actorType = class_basename($actor);
-        $likeableType = class_basename($likeable); 
+        $likeableType = class_basename($likeable);
 
         return "like:{$actorType}_{$actor->id}:{$likeableType}_{$likeable->id}";
     }

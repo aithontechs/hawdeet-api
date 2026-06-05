@@ -96,7 +96,7 @@ class SubscriptionService
             $previousExpiredSub = UserSubscription::query()
                                     ->where('user_id', $subscription->user_id)
                                     ->where('id', '!=', $subscription->id)
-                                    ->where('status', 'expired')
+                                    ->where('status', ['active', 'expired'])
                                     ->latest('end_at')
                                     ->first();
 

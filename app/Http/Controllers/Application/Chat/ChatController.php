@@ -14,7 +14,7 @@ class ChatController extends Controller
 
     public function index(Request $request)
     {
-        $messages = ChatMessage::where('user_id', $request->user()->id)->orderBy('created_at', 'asc')->paginate(50);
+        $messages = ChatMessage::where('user_id', $request->user()->id)->orderBy('created_at', 'desc')->paginate(50);
         $messages->setCollection(ChatMessageResource::collection($messages->getCollection())->collection);
         return $this->successApi($messages , 'Messages fetched successfully');
     }

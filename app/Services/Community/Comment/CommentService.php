@@ -3,6 +3,8 @@
 namespace App\Services\Community\Comment ;
 
 use App\Models\{Admin, Comment, Post, User};
+use App\Notifications\NewCommentNotification;
+use App\Notifications\NewReplyNotification;
 
 class CommentService
 {
@@ -32,6 +34,9 @@ class CommentService
         $post->increment('comments_count');
         if ($parentId) {
             Comment::where('id', $parentId)->increment('replies_count');
+            $this->notifyOnReply($comment, $actor, $parent, $post);
+        } else {
+            $this->notifyPostOwner($comment, $actor, $post);
         }
 
         return $comment->load('commentable:id,name,avatar_url');
@@ -74,5 +79,24 @@ class CommentService
             ->where('parent_id', $comment->id)
             ->orderBy('created_at')
             ->cursorPaginate($perPage);
+    }
+
+
+    private function notifyPostOwner(Comment $comment, User|Admin $actor, Post $post): void
+    {
+        $postOwner = $post->postable;
+
+        if (!($postOwner instanceof User)) return;
+        if ($postOwner->id === ($actor instanceof User ? $actor->id : null)) return;
+        $postOwner->notify(new NewCommentNotification($comment, $actor));
+    }
+
+    private function notifyOnReply(Comment $comment, User|Admin $actor, Comment $parent, Post $post): void
+    {
+        $parentOwner = $parent->commentable;
+
+        if (!($parentOwner instanceof User)) return;
+        if ($parentOwner->id === ($actor instanceof User ? $actor->id : null)) return;
+        $parentOwner->notify(new NewReplyNotification($comment, $actor));
     }
 }

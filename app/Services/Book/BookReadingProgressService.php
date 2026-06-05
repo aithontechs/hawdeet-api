@@ -3,6 +3,7 @@
 namespace App\Services\Book ;
 
 use App\Models\{Book, BookReadingProgress, User};
+use App\Models\UserBook;
 use Illuminate\Support\Carbon;
 
 class BookReadingProgressService
@@ -45,22 +46,40 @@ class BookReadingProgressService
         return BookReadingProgress::query()->where('user_id', $user->id)->where('book_id', $book->id)->firstorfail();
     }
 
-    public function getUserLibrary(User $user , $status)
+    public function getUserLibrary(User $user, $status)
     {
-        $query = BookReadingProgress::query()
-                    ->with('book:id,title,total_pages,cover')
-                    ->where('user_id', $user->id);
+        $query = UserBook::query()
+            ->with([
+                'book:id,title,total_pages,cover',
+            ])
+            ->leftJoin(
+                'book_reading_progress',
+                fn($join) => $join
+                    ->on('book_reading_progress.book_id', '=', 'user_books.book_id')
+                    ->where('book_reading_progress.user_id', $user->id)
+            )
+            ->where('user_books.user_id', $user->id)
+            ->active()
+            ->select([
+                'user_books.book_id',
+                'book_reading_progress.current_page',
+                'book_reading_progress.total_pages',
+                'book_reading_progress.percentage',
+                'book_reading_progress.status',
+                'book_reading_progress.last_read_at',
+                'book_reading_progress.completed_at',
+            ]);
 
         match ($status) {
-            'reading' => $query->where('status', 'reading'),
-            'completed' => $query->where('status', 'completed'),
-            'recent' => $query->latest(),
-            default => $query->orderByDesc('last_read_at'),
+            'reading'   => $query->where('book_reading_progress.status', 'reading'),
+            'completed' => $query->where('book_reading_progress.status', 'completed'),
+            'not_started' => $query->whereNull('book_reading_progress.id'),
+            'recent'    => $query->orderByDesc('book_reading_progress.last_read_at'),
+            default     => $query->orderByDesc('book_reading_progress.last_read_at'),
         };
+
         return $query->get();
     }
-
-
 
     public function getProfileStats(User $user): array
     {

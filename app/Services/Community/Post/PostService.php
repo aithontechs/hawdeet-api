@@ -5,9 +5,11 @@ namespace App\Services\Community\Post ;
 use App\Models\Admin;
 use App\Models\Post;
 use App\Models\User;
+use App\Notifications\NewPostNotification;
 use App\Services\Storage\StorageService;
 use Carbon\Carbon;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 
 class PostService
 {
@@ -36,7 +38,7 @@ class PostService
             $mediaType = $this->resolveMediaType($media);
         }
 
-        return $actor->morphMany(Post::class, 'postable')->create([
+        $post = $actor->morphMany(Post::class, 'postable')->create([
             'body'         => $data['body'] ?? null,
             'media_url'    => $mediaPath,
             'media_type'   => $mediaType,
@@ -44,6 +46,12 @@ class PostService
             'is_approved'  => $actor instanceof Admin,
             'published_at' => Carbon::now(),
         ]);
+
+        if ($actor instanceof User) {
+            $this->notifyFollowers($post, $actor);
+        }
+
+        return $post;
     }
 
     public function updatePost(Post $post, array $data, ?UploadedFile $media = null): Post
@@ -121,5 +129,13 @@ class PostService
     private function resolveMediaType(UploadedFile $file): string
     {
         return str_starts_with($file->getMimeType(), 'video/') ? 'video' : 'image';
+    }
+
+    private function notifyFollowers(Post $post, User $actor): void
+    {
+        $actor->followers()
+            ->chunk(100, function ($followers) use ($post, $actor) {
+                Notification::send($followers, new NewPostNotification($post, $actor));
+            });
     }
 }

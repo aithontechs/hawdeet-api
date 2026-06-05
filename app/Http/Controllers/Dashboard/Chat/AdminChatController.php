@@ -68,12 +68,39 @@ class AdminChatController extends Controller
         );
     }
 
+    public function update(Request $request, ChatMessage $message)
+    {
+        $request->validate([
+            'message' => ['required', 'string', 'max:1000'],
+        ]);
+
+        if ($message->sender_type !== 'admin') {
+            return $this->errorApi('You can only edit admin messages', 403);
+        }
+
+        $message->update([
+            'message' => $request->message,
+        ]);
+
+        return $this->successApi(data: new ChatMessageResource($message->fresh()),message: 'Message updated successfully');
+    }
+
+    public function destroy(ChatMessage $message)
+    {
+        if ($message->sender_type !== 'admin') {
+            return $this->errorApi('You can only delete admin messages', 403);
+        }
+        $message->delete();
+
+        return $this->successApi(message: 'Message deleted successfully');
+    }
+
     public function markAsRead(User $user)
     {
         ChatMessage::where('user_id', $user->id)
-            ->where('sender_type', 'user')
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
+                ->where('sender_type', 'user')
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
 
         return $this->successApi(message: 'Messages marked as read');
     }

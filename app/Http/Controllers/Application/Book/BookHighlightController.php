@@ -18,6 +18,10 @@ class BookHighlightController extends Controller
     {
         $this->authorize('access', $book);
         $validated = $request->validated() ;
+        $totalPages = $book->total_pages;
+
+        abort_if($validated['page_number'] < 1 || $validated['page_number'] > $totalPages,422,"Page {$validated['page_number']} is out of range.");
+
         $highlight = BookHighlight::create([
             'user_id'       => auth('user-api')->user()->id ,
             'book_id'       => $book->id,

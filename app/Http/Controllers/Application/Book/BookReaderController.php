@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Application\Book;
 use App\Http\Controllers\Controller;
 use App\Models\Book;
 use App\Services\Book\BookReaderService;
+use App\Services\Book\BookReadingProgressService;
 use App\Services\Book\UserBookService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
@@ -12,11 +13,10 @@ use Illuminate\Http\Request;
 class BookReaderController extends Controller
 {
     use ResponseApi ;
-    public function __construct(private readonly BookReaderService $readerService , private readonly UserBookService $userBookService)
+    public function __construct(private readonly BookReaderService $readerService , private readonly UserBookService $userBookService , private readonly BookReadingProgressService $progressService)
     {
 
     }
-
 
     public function index(Book $book)
     {
@@ -45,7 +45,7 @@ class BookReaderController extends Controller
                 $this->userBookService->recordSubscriptionAccess($user, $book);
             }
         }
-
+        $this->progressService->updateProgress($book,$user,$page) ;
         return $this->readerService->streamPage($book, $page, $user);
     }
 

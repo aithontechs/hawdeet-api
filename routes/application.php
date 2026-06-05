@@ -20,6 +20,7 @@ use App\Http\Controllers\Application\Follow\FollowController;
 use App\Http\Controllers\Application\Home\HomeController;
 use App\Http\Controllers\Application\Notification\NotificationController;
 use App\Http\Controllers\Application\Payment\PaymentController;
+use App\Http\Controllers\Application\ReadingCouncil\ReadingCouncilController;
 use App\Http\Controllers\Application\Setting\ChangePasswordController;
 use App\Http\Controllers\Application\Shipping\ShippingAddressController;
 use App\Http\Controllers\Application\Subscription\SubscriptionController;
@@ -67,6 +68,12 @@ Route::group(['prefix'=> 'v1'] , function () {
 
     Route::post('/payments/webhook', [PaymentController::class, 'webhook']);
     Route::get('/payments/callback', [PaymentController::class, 'callback']);
+
+    Route::prefix('councils')->group(function () {
+        Route::get('/',          [ReadingCouncilController::class, 'index']);
+        Route::get('/featured',  [ReadingCouncilController::class, 'featured']);
+        Route::get('/{council}/members', [ReadingCouncilController::class, 'members']);
+    }) ;
 
     // Auth
     Route::middleware(['auth:user-api' , 'verified'])->group(function () {
@@ -147,6 +154,28 @@ Route::group(['prefix'=> 'v1'] , function () {
             Route::get('/', [ChatController::class, 'index']);
             Route::post('/',  [ChatController::class, 'store']);
             Route::post('/mark-read', [ChatController::class, 'markAsRead']);
+        });
+
+
+        Route::prefix('councils')->group(function () {
+            Route::get('/{council}', [ReadingCouncilController::class, 'show']);
+            Route::post('/{council}/join',  [ReadingCouncilController::class, 'join']);
+            Route::delete('/{council}/leave', [ReadingCouncilController::class, 'leave']);
+
+            // comments
+            Route::get('/{council}/comments',  [ReadingCouncilController::class, 'comments']);
+            Route::post('/{council}/comments', [ReadingCouncilController::class, 'addComment']);
+            Route::put('/{council}/comments/{comment}', [ReadingCouncilController::class, 'updateComment']);
+            Route::delete('/{council}/comments/{comment}', [ReadingCouncilController::class, 'deleteComment']);
+            Route::get('/comments/{comment}/replies',[ReadingCouncilController::class, 'replies']);
+
+            // Likes on comments
+            Route::post('/{comment}/like', [LikeController::class, 'likeCouncilComment']);
+
+
+            Route::post('/',  [ReadingCouncilController::class, 'store']);
+            Route::put('/{council}', [ReadingCouncilController::class, 'update']);
+            Route::delete('/{council}', [ReadingCouncilController::class, 'destroy']);
         });
 
     });

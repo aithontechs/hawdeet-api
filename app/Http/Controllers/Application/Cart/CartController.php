@@ -96,7 +96,6 @@ class CartController extends Controller
         );
 
         $message = $result['removed'] ? 'Item removed from cart' : 'Quantity updated successfully';
-
         return $this->successApi($result, $message);
     }
 

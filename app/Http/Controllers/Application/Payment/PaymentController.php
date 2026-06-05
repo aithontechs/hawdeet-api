@@ -93,66 +93,67 @@ class PaymentController extends Controller
     // for test only - not used in production
     public function callback(Request $request)
     {
-        Log::info('Paymob Webhook', [
-            'query' => $request->query(),
-            'body'  => $request->all(),
-        ]);
+        return $this->suceessApi(message:'Payment is be paid');
+        // Log::info('Paymob Webhook', [
+        //     'query' => $request->query(),
+        //     'body'  => $request->all(),
+        // ]);
 
-        $hmac = $request->query('hmac');
+        // $hmac = $request->query('hmac');
 
-        if (!$this->paymob->verifyHmac($request->query(), $hmac)) {
-            Log::warning('Paymob Webhook: Invalid HMAC');
-            return response()->json(['message' => 'Invalid HMAC'], 403);
-        }
+        // if (!$this->paymob->verifyHmac($request->query(), $hmac)) {
+        //     Log::warning('Paymob Webhook: Invalid HMAC');
+        //     return response()->json(['message' => 'Invalid HMAC'], 403);
+        // }
 
-        $isSuccess = filter_var($request->query('success'), FILTER_VALIDATE_BOOLEAN);
+        // $isSuccess = filter_var($request->query('success'), FILTER_VALIDATE_BOOLEAN);
 
-        $paymentId = $request->query('merchant_order_id');
-        if (str_contains($paymentId, 'PAY-')) {
-            $paymentId = explode('-', $paymentId)[1];
-        }
-        $payment   = Payment::find($paymentId);
+        // $paymentId = $request->query('merchant_order_id');
+        // if (str_contains($paymentId, 'PAY-')) {
+        //     $paymentId = explode('-', $paymentId)[1];
+        // }
+        // $payment   = Payment::find($paymentId);
 
-        if (!$payment) {
-            Log::warning('Paymob Webhook: Payment not found', [
-                'merchant_order_id' => $paymentId
-            ]);
-            return response()->json(['message' => 'Payment not found'], 404);
-        }
+        // if (!$payment) {
+        //     Log::warning('Paymob Webhook: Payment not found', [
+        //         'merchant_order_id' => $paymentId
+        //     ]);
+        //     return response()->json(['message' => 'Payment not found'], 404);
+        // }
 
-        if ($payment->isPaid()) {
-            return response()->json(['message' => 'Already processed']);
-        }
+        // if ($payment->isPaid()) {
+        //     return response()->json(['message' => 'Already processed']);
+        // }
 
-        if (!$isSuccess) {
-            $payment->update([
-                'status'           => 'failed',
-                'failure_reason'   => $request->query('data.message', 'Payment failed'),
-                'gateway_response' => $request->query(),
-            ]);
+        // if (!$isSuccess) {
+        //     $payment->update([
+        //         'status'           => 'failed',
+        //         'failure_reason'   => $request->query('data.message', 'Payment failed'),
+        //         'gateway_response' => $request->query(),
+        //     ]);
 
-            $payment->order?->update(['payment_status' => 'failed']);
-            $payment->subscription?->update(['payment_status' => 'failed']);
+        //     $payment->order?->update(['payment_status' => 'failed']);
+        //     $payment->subscription?->update(['payment_status' => 'failed']);
 
-            Log::info("Payment #{$payment->id} failed.");
-            return response()->json(['message' => 'Payment failure recorded']);
-        }
+        //     Log::info("Payment #{$payment->id} failed.");
+        //     return response()->json(['message' => 'Payment failure recorded']);
+        // }
 
-        $payment->update([
-            'status'                 => 'paid',
-            'gateway_transaction_id' => $request->query('id'),
-            'paymob_order_id'        => $request->query('order'),
-            'gateway_response'       => $request->query(),
-            'paid_at'                => now(),
-        ]);
+        // $payment->update([
+        //     'status'                 => 'paid',
+        //     'gateway_transaction_id' => $request->query('id'),
+        //     'paymob_order_id'        => $request->query('order'),
+        //     'gateway_response'       => $request->query(),
+        //     'paid_at'                => now(),
+        // ]);
 
-        if ($payment->type === 'order') {
-            $this->handleOrderPayment($payment);
-        } elseif ($payment->type === 'subscription') {
-            $this->handleSubscriptionPayment($payment);
-        }
+        // if ($payment->type === 'order') {
+        //     $this->handleOrderPayment($payment);
+        // } elseif ($payment->type === 'subscription') {
+        //     $this->handleSubscriptionPayment($payment);
+        // }
 
-        return response()->json(['message' => 'Webhook processed successfully']);
+        // return response()->json(['message' => 'Webhook processed successfully']);
     }
 
     private function handleOrderPayment(Payment $payment): void
