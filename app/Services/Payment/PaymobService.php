@@ -2,8 +2,9 @@
 
 namespace App\Services\Payment;
 
-use Illuminate\Support\Facades\Http;
 use Exception;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class PaymobService
 {
@@ -196,6 +197,13 @@ class PaymobService
         $hashString .= $obj['source_data']['type']     ?? '';
 
         $computed = hash_hmac('sha512', $hashString, config('paymob.hmac_secret'));
+
+        Log::info('HMAC Debug', [
+            'hash_string' => $hashString,
+            'computed'    => $computed,
+            'received'    => $receivedHmac,
+            'match'       => hash_equals($computed, $receivedHmac),
+        ]);
 
         return hash_equals($computed, $receivedHmac);
     }
