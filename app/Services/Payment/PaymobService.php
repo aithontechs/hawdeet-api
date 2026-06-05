@@ -169,6 +169,38 @@ class PaymobService
     }
 
 
+    public function verifyHmacFromObj(array $obj, string $receivedHmac): bool
+    {
+        $fields = [
+            'amount_cents', 'created_at', 'currency', 'error_occured',
+            'has_parent_transaction', 'id', 'integration_id', 'is_3d_secure',
+            'is_auth', 'is_capture', 'is_refunded', 'is_standalone_payment',
+            'is_voided', 'order', 'owner', 'pending', 'success',
+        ];
+
+        $hashString = '';
+        foreach ($fields as $field) {
+            if ($field === 'order') {
+                $hashString .= $obj['order']['id'] ?? '';
+            } else {
+                $value = $obj[$field] ?? '';
+                if (is_bool($value)) {
+                    $value = $value ? 'true' : 'false';
+                }
+                $hashString .= $value;
+            }
+        }
+
+        $hashString .= $obj['source_data']['pan']      ?? '';
+        $hashString .= $obj['source_data']['sub_type'] ?? '';
+        $hashString .= $obj['source_data']['type']     ?? '';
+
+        $computed = hash_hmac('sha512', $hashString, config('paymob.hmac_secret'));
+
+        return hash_equals($computed, $receivedHmac);
+    }
+
+
     public function getPaymentKeyForExistingOrder(
     int    $amountCents,
     int    $paymobOrderId,

@@ -33,25 +33,29 @@ class PaymentController extends Controller
         ]);
 
         $hmac = $request->query('hmac');
+        $obj  = $request->input('obj');
 
-        if (!$this->paymob->verifyHmac($request->query(), $hmac)) {
+        if (!$obj) {
+            return response()->json(['message' => 'Invalid payload'], 400);
+        }
+
+        if (!$this->paymob->verifyHmacFromObj($obj, $hmac)) {
             Log::warning('Paymob Webhook: Invalid HMAC');
             return response()->json(['message' => 'Invalid HMAC'], 403);
         }
 
-        $isSuccess = filter_var($request->query('success'), FILTER_VALIDATE_BOOLEAN);
+        $isSuccess = (bool) ($obj['success'] ?? false);
 
-        $paymentId = $request->query('merchant_order_id');
-        $paymentId = $request->query('merchant_order_id');
+        $merchantOrderId = $obj['order']['merchant_order_id'] ?? null;
+        $paymentId = $merchantOrderId;
         if (str_contains($paymentId, 'PAY-')) {
             $paymentId = explode('-', $paymentId)[1];
         }
-        $payment   = Payment::find($paymentId);
+
+        $payment = Payment::find($paymentId);
 
         if (!$payment) {
-            Log::warning('Paymob Webhook: Payment not found', [
-                'merchant_order_id' => $paymentId
-            ]);
+            Log::warning('Paymob Webhook: Payment not found', ['merchant_order_id' => $merchantOrderId]);
             return response()->json(['message' => 'Payment not found'], 404);
         }
 
@@ -62,22 +66,20 @@ class PaymentController extends Controller
         if (!$isSuccess) {
             $payment->update([
                 'status'           => 'failed',
-                'failure_reason'   => $request->query('data.message', 'Payment failed'),
-                'gateway_response' => $request->query(),
+                'failure_reason'   => $obj['data']['message'] ?? 'Payment failed',
+                'gateway_response' => $obj,
             ]);
-
             $payment->order?->update(['payment_status' => 'failed']);
             $payment->subscription?->update(['payment_status' => 'failed']);
-
             Log::info("Payment #{$payment->id} failed.");
             return response()->json(['message' => 'Payment failure recorded']);
         }
 
         $payment->update([
             'status'                 => 'paid',
-            'gateway_transaction_id' => $request->query('id'),
-            'paymob_order_id'        => $request->query('order'),
-            'gateway_response'       => $request->query(),
+            'gateway_transaction_id' => $obj['id'],
+            'paymob_order_id'        => $obj['order']['id'],
+            'gateway_response'       => $obj,
             'paid_at'                => now(),
         ]);
 
@@ -93,7 +95,7 @@ class PaymentController extends Controller
     // for test only - not used in production
     public function callback(Request $request)
     {
-        return $this->suceessApi(message:'Payment is be paid');
+        return $this->successApi(message:'Payment is be paid');
         // Log::info('Paymob Webhook', [
         //     'query' => $request->query(),
         //     'body'  => $request->all(),
