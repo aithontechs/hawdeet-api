@@ -246,4 +246,111 @@ class CartService
             $guestItem->delete();
         }
     }
+
+    public function updateItemsQuantity(array $items,?string $cookieId,?User $user): array
+    {
+        $results = [];
+        DB::transaction(function () use ($items, $cookieId, $user, &$results) {
+            foreach ($items as $item) {
+                $cartItemQuery = Cart::where('id', $item['cart_id']);
+
+                $user
+                    ? $cartItemQuery->where('user_id', $user->id)
+                    : $cartItemQuery->where('cookie_id', $cookieId);
+
+                $cartItem = $cartItemQuery
+                    ->with('book:id,physical_stock,physical_price')
+                    ->first();
+
+                if (
+                    ! $cartItem ||
+                    $cartItem->item_type !== 'physical'
+                ) {
+                    continue;
+                }
+
+                $quantity = (int) $item['quantity'];
+
+                if ($quantity < 1) {
+                    $cartItem->delete();
+
+                    $results[] = [
+                        'cart_id' => $item['cart_id'],
+                        'removed' => true,
+                    ];
+
+                    continue;
+                }
+
+                if ($quantity > $cartItem->book->physical_stock) {
+                    throw ValidationException::withMessages([
+                        'quantity' => "Only {$cartItem->book->physical_stock} available for book id = {$cartItem->book_id}.",
+                    ]);
+                }
+
+                $cartItem->update([
+                    'quantity' => $quantity
+                ]);
+
+                $results[] = [
+                    'cart_id'   => $cartItem->id,
+                    'updated'   => true,
+                    'quantity'  => $cartItem->quantity,
+                ];
+            }
+        });
+
+        return $results;
+    }
+
+    public function updateAllItemsQuantity(string $action,?string $cookieId,?User $user): array
+    {
+
+        $query = Cart::where('item_type', 'physical');
+
+        $user? $query->where('user_id', $user->id) : $query->where('cookie_id', $cookieId);
+        $items = $query->with('book:id,physical_stock,physical_price')->get();
+
+        $results = [];
+
+        DB::transaction(function () use ($items, $action, &$results) {
+
+            foreach ($items as $cartItem) {
+
+                if ($action === 'increment') {
+
+                    if ($cartItem->quantity < $cartItem->book->physical_stock) {
+                        $cartItem->increment('quantity');
+
+                        $results[] = [
+                            'cart_id' => $cartItem->id,
+                            'quantity' => $cartItem->quantity + 1,
+                            'action'   => 'increment'
+                        ];
+                    }
+
+                } elseif ($action === 'decrement') {
+
+                    if ($cartItem->quantity <= 1) {
+                        $cartItem->delete();
+
+                        $results[] = [
+                            'cart_id' => $cartItem->id,
+                            'removed' => true
+                        ];
+                    } else {
+                        $cartItem->decrement('quantity');
+
+                        $results[] = [
+                            'cart_id' => $cartItem->id,
+                            'quantity' => $cartItem->quantity - 1,
+                            'action'   => 'decrement'
+                        ];
+                    }
+                }
+            }
+        });
+
+        return $results;
+    }
 }

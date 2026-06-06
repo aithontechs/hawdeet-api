@@ -61,6 +61,8 @@ Route::group(['prefix'=> 'v1'] , function () {
 
 
     // Carts & Checkout
+    Route::post('/cart/update-items', [CartController::class, 'updateItems']);
+    Route::post('/cart/update-actions', [CartController::class, 'updateAll']);
     Route::apiResource('carts' , CartController::class)->except(['update' , 'show']);
     Route::patch('carts/{cartId}/quantity', [CartController::class, 'updateQuantity']);
     Route::get('subscription-plans' , [SubscriptionController::class , 'index']) ;

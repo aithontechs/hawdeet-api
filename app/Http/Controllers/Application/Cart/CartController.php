@@ -99,4 +99,45 @@ class CartController extends Controller
         return $this->successApi($result, $message);
     }
 
+    public function updateItems(Request $request)
+    {
+        $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.cart_id' => 'required|integer|exists:carts,id',
+            'items.*.quantity' => 'required|integer|min:0',
+        ]);
+
+        $user = auth('user-api')->user();
+        $cookieId = $this->cartService->getOrCreateCookieId($request);
+
+        $this->cartService->updateItemsQuantity(items: $request->items,cookieId: $cookieId,user: $user);
+
+        $items = $this->cartService->getItems($cookieId, $user);
+        $total = $this->cartService->getTotal($cookieId, $user);
+
+        return $this->successApi([
+            'items'      => $items,
+            'total'      => $total,
+            'item_count' => $items->count(),
+        ], 'Cart updated successfully');
+    }
+
+    public function updateAll(Request $request)
+    {
+        $request->validate([
+            'action' => 'required|in:increment,decrement',
+        ]);
+
+        $user = auth('user-api')->user();
+        $cookieId = $this->cartService->getOrCreateCookieId($request);
+
+        $result = $this->cartService->updateAllItemsQuantity(
+            $request->action,
+            $cookieId,
+            $user
+        );
+
+        return $this->successApi(['updated_items' => $result], 'Cart updated successfully');
+    }
+
 }

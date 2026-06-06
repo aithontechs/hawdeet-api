@@ -9,6 +9,7 @@ use App\Notifications\BookPublishedNotification;
 use App\Services\Storage\StorageService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -50,51 +51,6 @@ class BookService
     //         return $book->load('categories');
     //     });
     // }
-    // public function create(array $data, UploadedFile $coverFile, ?UploadedFile $bookFile): Book
-    // {
-    //     return DB::transaction(function () use ($data, $coverFile, $bookFile) {
-    //         $user = User::findOrFail($data['author_id']);
-    //         abort_if(!$user->is_author, 403, 'This user is not an author.');
-
-    //         $type = $data['type'] ?? 'digital';
-
-    //         $data['cover']          = $this->storage->upload($coverFile, self::COVER_FOLDER, StorageService::DISK_PUBLIC);
-    //         $data['slug']           = $data['slug'] ?? Str::slug($data['title']);
-    //         $data['uploaded_by']    = auth()->id();
-    //         $data['file_processed'] = false;
-
-    //         $previewStart = $data['preview_start_page'] ?? 1;
-    //         $previewEnd   = $data['preview_end_page'] ?? 10;
-
-    //         if (in_array($type, ['digital', 'both'])) {
-    //             abort_unless($bookFile, 422, 'Book file is required for digital books.');
-    //             $data['file'] = $this->storage->upload($bookFile, self::FILE_FOLDER, StorageService::DISK_PRIVATE);
-    //         }
-
-    //         $categoryIds = $data['category_ids'] ?? [];
-    //         unset($data['category_ids'], $data['preview_start_page'], $data['preview_end_page']);
-
-    //         $book = Book::create($data);
-
-    //         if (!empty($categoryIds)) {
-    //             $book->categories()->sync($categoryIds);
-    //         }
-
-    //         if (in_array($type, ['digital', 'both'])) {
-    //             \Log::info('Dispatching ProcessBookFiles', ['book_id' => $book->id]);
-
-    //             ProcessBookFiles::dispatch(
-    //                 $book->id,
-    //                 $book->file,
-    //                 $previewStart,
-    //                 $previewEnd,
-    //             )->afterCommit();
-    //         }
-
-    //         return $book->load('categories');
-    //     });
-    // }
-
     public function create(array $data, UploadedFile $coverFile, ?UploadedFile $bookFile): Book
     {
         return DB::transaction(function () use ($data, $coverFile, $bookFile) {
@@ -111,10 +67,9 @@ class BookService
             $previewStart = $data['preview_start_page'] ?? 1;
             $previewEnd   = $data['preview_end_page'] ?? 10;
 
-            $tmpPath = null;
             if (in_array($type, ['digital', 'both'])) {
                 abort_unless($bookFile, 422, 'Book file is required for digital books.');
-                $tmpPath = $bookFile->store('pending_books', 'local');
+                $data['file'] = $this->storage->upload($bookFile, self::FILE_FOLDER, StorageService::DISK_PRIVATE);
             }
 
             $categoryIds = $data['category_ids'] ?? [];
@@ -126,10 +81,12 @@ class BookService
                 $book->categories()->sync($categoryIds);
             }
 
-            if ($tmpPath) {
+            if (in_array($type, ['digital', 'both'])) {
+                Log::info('Dispatching ProcessBookFiles', ['book_id' => $book->id]);
+
                 ProcessBookFiles::dispatch(
                     $book->id,
-                    $tmpPath,
+                    $book->file,
                     $previewStart,
                     $previewEnd,
                 )->afterCommit();
@@ -138,6 +95,53 @@ class BookService
             return $book->load('categories');
         });
     }
+
+    // public function create(array $data, UploadedFile $coverFile, ?UploadedFile $bookFile): Book
+    // {
+    //     return DB::transaction(function () use ($data, $coverFile, $bookFile) {
+    //         $user = User::findOrFail($data['author_id']);
+    //         abort_if(!$user->is_author, 403, 'This user is not an author.');
+
+    //         $type = $data['type'] ?? 'digital';
+
+    //         // ✅ cover بس في الـ request (صغير)
+    //         $data['cover']          = $this->storage->upload($coverFile, self::COVER_FOLDER, StorageService::DISK_PUBLIC);
+    //         $data['slug']           = $data['slug'] ?? Str::slug($data['title']);
+    //         $data['uploaded_by']    = auth()->id();
+    //         $data['file_processed'] = false;
+
+    //         $previewStart = $data['preview_start_page'] ?? 1;
+    //         $previewEnd   = $data['preview_end_page'] ?? 10;
+
+    //         // ✅ احفظ الـ PDF في tmp فقط بدون upload
+    //         $tmpPath = null;
+    //         if (in_array($type, ['digital', 'both'])) {
+    //             abort_unless($bookFile, 422, 'Book file is required for digital books.');
+    //             $tmpPath = $bookFile->store('pending_books', 'local'); // disk مؤقت local
+    //         }
+
+    //         $categoryIds = $data['category_ids'] ?? [];
+    //         unset($data['category_ids'], $data['preview_start_page'], $data['preview_end_page']);
+
+    //         $book = Book::create($data);
+
+    //         if (!empty($categoryIds)) {
+    //             $book->categories()->sync($categoryIds);
+    //         }
+
+    //         // ✅ بعت الـ Job مع الـ tmp path
+    //         if ($tmpPath) {
+    //             ProcessBookFiles::dispatch(
+    //                 $book->id,
+    //                 $tmpPath,
+    //                 $previewStart,
+    //                 $previewEnd,
+    //             )->afterCommit();
+    //         }
+
+    //         return $book->load('categories');
+    //     });
+    // }
 
     public function update(Book $book, array $data, ?UploadedFile $coverFile, ?UploadedFile $bookFile)
     {
