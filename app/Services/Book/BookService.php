@@ -23,34 +23,6 @@ class BookService
 
     public function __construct(private readonly StorageService $storage) {}
 
-    // public function create(array $data, UploadedFile $coverFile, ?UploadedFile $bookFile)
-    // {
-    //     return DB::transaction(function () use ($data, $coverFile, $bookFile) {
-    //         $user = User::findOrFail($data['author_id']);
-    //         abort_if(!$user->is_author, 403, 'This user is not an author.');
-
-    //         $type = $data['type'] ?? 'digital';
-
-    //         $data['cover']       = $this->storage->upload($coverFile, self::COVER_FOLDER, StorageService::DISK_PUBLIC);
-    //         $data['slug']        = $data['slug'] ?? Str::slug($data['title']);
-    //         $data['uploaded_by'] = auth()->id();
-
-    //         if (in_array($type, ['digital', 'both'])) {
-    //             $data = $this->uploadDigitsBook($data, $bookFile);
-    //         }
-
-    //         $categoryIds = $data['category_ids'] ?? [];
-    //         unset($data['category_ids'], $data['preview_start_page'], $data['preview_end_page']);
-
-    //         $book = Book::create($data);
-
-    //         if (!empty($categoryIds)) {
-    //             $book->categories()->sync($categoryIds);
-    //         }
-
-    //         return $book->load('categories');
-    //     });
-    // }
     public function create(array $data, UploadedFile $coverFile, ?UploadedFile $bookFile): Book
     {
         return DB::transaction(function () use ($data, $coverFile, $bookFile) {
@@ -67,9 +39,11 @@ class BookService
             $previewStart = $data['preview_start_page'] ?? 1;
             $previewEnd   = $data['preview_end_page'] ?? 10;
 
+            $tmpPath = null;
             if (in_array($type, ['digital', 'both'])) {
                 abort_unless($bookFile, 422, 'Book file is required for digital books.');
-                $data['file'] = $this->storage->upload($bookFile, self::FILE_FOLDER, StorageService::DISK_PRIVATE);
+
+                $tmpPath = $bookFile->store('pending_books', 'local');
             }
 
             $categoryIds = $data['category_ids'] ?? [];
@@ -81,12 +55,10 @@ class BookService
                 $book->categories()->sync($categoryIds);
             }
 
-            if (in_array($type, ['digital', 'both'])) {
-                Log::info('Dispatching ProcessBookFiles', ['book_id' => $book->id]);
-
+            if ($tmpPath) {
                 ProcessBookFiles::dispatch(
                     $book->id,
-                    $book->file,
+                    $tmpPath,
                     $previewStart,
                     $previewEnd,
                 )->afterCommit();
@@ -95,53 +67,6 @@ class BookService
             return $book->load('categories');
         });
     }
-
-    // public function create(array $data, UploadedFile $coverFile, ?UploadedFile $bookFile): Book
-    // {
-    //     return DB::transaction(function () use ($data, $coverFile, $bookFile) {
-    //         $user = User::findOrFail($data['author_id']);
-    //         abort_if(!$user->is_author, 403, 'This user is not an author.');
-
-    //         $type = $data['type'] ?? 'digital';
-
-    //         // ✅ cover بس في الـ request (صغير)
-    //         $data['cover']          = $this->storage->upload($coverFile, self::COVER_FOLDER, StorageService::DISK_PUBLIC);
-    //         $data['slug']           = $data['slug'] ?? Str::slug($data['title']);
-    //         $data['uploaded_by']    = auth()->id();
-    //         $data['file_processed'] = false;
-
-    //         $previewStart = $data['preview_start_page'] ?? 1;
-    //         $previewEnd   = $data['preview_end_page'] ?? 10;
-
-    //         // ✅ احفظ الـ PDF في tmp فقط بدون upload
-    //         $tmpPath = null;
-    //         if (in_array($type, ['digital', 'both'])) {
-    //             abort_unless($bookFile, 422, 'Book file is required for digital books.');
-    //             $tmpPath = $bookFile->store('pending_books', 'local'); // disk مؤقت local
-    //         }
-
-    //         $categoryIds = $data['category_ids'] ?? [];
-    //         unset($data['category_ids'], $data['preview_start_page'], $data['preview_end_page']);
-
-    //         $book = Book::create($data);
-
-    //         if (!empty($categoryIds)) {
-    //             $book->categories()->sync($categoryIds);
-    //         }
-
-    //         // ✅ بعت الـ Job مع الـ tmp path
-    //         if ($tmpPath) {
-    //             ProcessBookFiles::dispatch(
-    //                 $book->id,
-    //                 $tmpPath,
-    //                 $previewStart,
-    //                 $previewEnd,
-    //             )->afterCommit();
-    //         }
-
-    //         return $book->load('categories');
-    //     });
-    // }
 
     public function update(Book $book, array $data, ?UploadedFile $coverFile, ?UploadedFile $bookFile)
     {
@@ -159,11 +84,24 @@ class BookService
                 );
             }
 
+            $previewStart = $data['preview_start_page'] ?? 1;
+            $previewEnd   = $data['preview_end_page']   ?? 10;
+            $tmpPath      = null;
+
             if (in_array($type, ['digital', 'both'])) {
                 if ($bookFile) {
+                    // احذف الملفات القديمة
                     $this->storage->deleteMany([$book->file, $book->preview], StorageService::DISK_PRIVATE);
-                    $data = $this->uploadDigitsBook($data, $bookFile);
-                }else {
+
+                    // store مؤقت زي الـ create
+                    $tmpPath = $bookFile->store('pending_books', 'local');
+
+                    $data['file_processed'] = false;
+                    // امسح القيم القديمة عشان ما يظلوش
+                    $data['file']        = null;
+                    $data['preview']     = null;
+                    $data['total_pages'] = 0;
+                } else {
                     unset($data['file'], $data['preview']);
                 }
             } elseif ($type === 'physical') {
@@ -173,8 +111,8 @@ class BookService
                     $data['preview']     = null;
                     $data['total_pages'] = 0;
                 }
-                $data['price'] = 0 ;
-                $data['compare_price'] = 0 ;
+                $data['price']         = 0;
+                $data['compare_price'] = 0;
             }
 
             $categoryIds = $data['category_ids'] ?? null;
@@ -184,6 +122,16 @@ class BookService
 
             if (!is_null($categoryIds)) {
                 $book->categories()->sync($categoryIds);
+            }
+
+            // dispatch الـ job بعد commit زي الـ create
+            if ($tmpPath) {
+                ProcessBookFiles::dispatch(
+                    $book->id,
+                    $tmpPath,
+                    $previewStart,
+                    $previewEnd,
+                )->afterCommit();
             }
 
             return $book->load('categories');
@@ -254,22 +202,37 @@ class BookService
         abort_unless($bookFile, 422, 'Book file is required for digital books.');
 
         $data['file'] = $this->storage->upload($bookFile, self::FILE_FOLDER, StorageService::DISK_PRIVATE);
-        $pdfPath = Storage::disk(StorageService::DISK_PRIVATE)->path($data['file']);
+        $sourcePath   = Storage::disk(StorageService::DISK_PRIVATE)->path($data['file']);
 
-        $pdf = new Fpdi();
-        $data['total_pages'] = $pdf->setSourceFile($pdfPath);
+        $compatPath          = $this->preprocessPdfForFpdi($sourcePath);
+        $pdf                 = new Fpdi();
+        $data['total_pages'] = $pdf->setSourceFile($compatPath);
 
         abort_if($data['preview_start_page'] > $data['total_pages'], 422, 'Preview start page exceeds total pages.');
-        abort_if($data['preview_end_page'] > $data['total_pages'],422,'Preview end page exceeds total pages.');
-        $data['preview'] = $this->generatePreview($data['file'],$data['preview_start_page'],$data['preview_end_page'] );
+        abort_if($data['preview_end_page']   > $data['total_pages'], 422, 'Preview end page exceeds total pages.');
+
+        $data['preview'] = $this->generatePreview(
+            $data['file'],
+            $data['preview_start_page'],
+            $data['preview_end_page'],
+            $compatPath
+        );
+
+        if ($compatPath !== $sourcePath) {
+            @unlink($compatPath);
+        }
 
         return $data;
     }
 
-    private function generatePreview(string $storedFilePath, int $startPage = 1, int $endPage = 10): ?string
+    private function generatePreview(string $storedFilePath,int $startPage  = 1,int $endPage    = 10,string $compatPath = null): ?string
     {
         try {
-            $sourcePath  = Storage::disk(StorageService::DISK_PRIVATE)->path($storedFilePath);
+            $sourcePath = $compatPath
+                ?? $this->preprocessPdfForFpdi(
+                    Storage::disk(StorageService::DISK_PRIVATE)->path($storedFilePath)
+                );
+
             $previewName = Str::uuid() . '_preview.pdf';
             $previewTmp  = sys_get_temp_dir() . '/' . $previewName;
 
@@ -291,7 +254,6 @@ class BookService
             $pdf->Output($previewTmp, 'F');
 
             $previewPath = self::PREVIEW_FOLDER . '/' . $previewName;
-
             $this->storage->put($previewPath, file_get_contents($previewTmp), StorageService::DISK_PRIVATE);
 
             @unlink($previewTmp);
@@ -305,5 +267,29 @@ class BookService
             ]);
             return null;
         }
+    }
+
+
+    private function preprocessPdfForFpdi(string $sourcePath): string
+    {
+        $outputPath = sys_get_temp_dir() . '/' . Str::uuid() . '_compat.pdf';
+
+        $exitCode = 0;
+        $output   = [];
+        exec(
+            "qpdf --object-streams=disable " . escapeshellarg($sourcePath) . " " . escapeshellarg($outputPath) . " 2>&1",
+            $output,
+            $exitCode
+        );
+
+        if ($exitCode !== 0 || !file_exists($outputPath)) {
+            logger()->warning('QPDF preprocessing failed, using original', [
+                'path'   => $sourcePath,
+                'output' => implode("\n", $output),
+            ]);
+            return $sourcePath;
+        }
+
+        return $outputPath;
     }
 }

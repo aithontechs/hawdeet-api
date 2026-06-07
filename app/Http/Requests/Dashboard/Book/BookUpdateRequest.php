@@ -37,7 +37,7 @@ class BookUpdateRequest extends FormRequest
             'cover' => ['sometimes', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'file'  => [
                 $this->shouldRequireFile($book, $type) ? 'required' : 'sometimes',
-                'file', 'mimes:pdf', 'max:30720' ,  'mimetypes:application/pdf'
+                'file', 'mimes:pdf', 'max:20480' ,  'mimetypes:application/pdf'
             ],
             'preview_start_page' => ['required_with:file', 'integer', 'min:1'],
             'preview_end_page'   => ['required_with:file', 'integer', 'min:1', 'gte:preview_start_page'],

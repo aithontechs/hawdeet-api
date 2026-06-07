@@ -9,5 +9,7 @@
         'checkout_id' => env('PAYMOB_CHECKOUT_ID', '5692093'),
         'iframe_id'          => env('PAYMOB_IFRAME_ID'),
         'hmac_secret'        => env('PAYMOB_HMAC_SECRET'),
+        'public_key'         => env('PAYMOB_PUBLIC_KEY'),
         'base_url'           => 'https://accept.paymob.com/api',
+        'secret_key' => env('PAYMOB_SECRET_KEY'),
     ];
