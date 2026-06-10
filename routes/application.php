@@ -87,12 +87,15 @@ Route::group(['prefix'=> 'v1'] , function () {
 
 
         Route::get('/checkout/shipping-zones' , [CheckoutController::class , 'shippingZones'] );
-        Route::apiResource('/shipping/addresses' , ShippingAddressController::class )->except('show' , 'destroy');
+        Route::apiResource('/shipping/addresses' , ShippingAddressController::class )->except('show');
 
 
 
         // access book
         Route::get('books/{book}/read/page/{page}' , [BookReaderController::class , 'page']);
+
+        Route::get('books/{book}/page/{page}/image',    [BookReaderController::class, 'pageImage']);
+        Route::get('books/{book}/preview/{page}/image', [BookReaderController::class, 'previewImage']);
 
         // Review Book
         Route::apiResource('books/{book}/reviews', BookReviewController::class)->except('show');
