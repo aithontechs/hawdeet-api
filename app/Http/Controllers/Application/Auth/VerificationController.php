@@ -12,22 +12,33 @@ class VerificationController extends Controller
 {
     use ResponseApi ;
 
-    public function verify(Request $request, $id)
+    public function verify(Request $request)
     {
-        $user = User::findOrFail($id);
-        if (! hash_equals((string) $request->hash, sha1($user->getEmailForVerification()))) {
-            return $this->errorApi('Invalid verification link', 403);
-        }
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'otp'   => 'required|digits:6',
+        ]);
 
-        if ($request->has('expires') && now()->timestamp > $request->expires) {
-            return $this->errorApi('Verification link has expired', 403);
-        }
+        $user = User::where('email', $request->email)->firstOrFail();
 
         if ($user->hasVerifiedEmail()) {
             return $this->errorApi('Email already verified', 400);
         }
 
+        if (! $user->otp_expires_at || now()->isAfter($user->otp_expires_at)) {
+            return $this->errorApi('OTP has expired', 403);
+        }
+
+        if ($request->otp !== $user->email_verification_otp) {
+            return $this->errorApi('Invalid OTP', 403);
+        }
+
         $user->markEmailAsVerified();
+
+        $user->update([
+            'email_verification_otp' => null,
+            'otp_expires_at'         => null,
+        ]);
 
         event(new Verified($user));
 
@@ -54,7 +65,7 @@ class VerificationController extends Controller
 
         $user->sendEmailVerificationNotification();
 
-        return $this->successApi(null, 'Verification email sent successfully');
+        return $this->successApi(null, 'OTP sent to your email successfully');
     }
 
 }

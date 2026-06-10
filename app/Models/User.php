@@ -28,7 +28,9 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
         'is_author',
         'is_active',
         'email_verified_at',
-        'bio'
+        'bio',
+        'email_verification_otp' ,
+        'otp_expires_at'
     ];
 
     protected $hidden = [
@@ -233,6 +235,12 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
 
     public function sendEmailVerificationNotification()
     {
-        $this->notify(new VerifyEmailNotification);
+        $otp = (string) random_int(100000, 999999);
+        $this->update([
+            'email_verification_otp' => $otp,
+            'otp_expires_at' => now()->addMinutes(10)
+        ]);
+
+        $this->notify(new VerifyEmailNotification($otp));
     }
 }

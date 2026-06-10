@@ -34,6 +34,7 @@ class Book extends Model
         'uploaded_by',
         'author_id',
         'is_subscription_included',
+        'file_processed'
     ];
 
     protected $casts = [

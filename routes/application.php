@@ -33,7 +33,8 @@ Route::group(['prefix'=> 'v1'] , function () {
 
     // Authentication
     Route::post('register' , [RegisterController::class , 'store']);
-    Route::get('/email/verify/{id}/{hash}', [VerificationController::class, 'verify'])->middleware('signed')->name('verification.verify') ;
+    // Route::get('/email/verify/{id}/{hash}', [VerificationController::class, 'verify'])->middleware('signed')->name('verification.verify') ;
+    Route::post('email/verify', [VerificationController::class, 'verify']);
     Route::post('/email/resend-verification', [VerificationController::class, 'resend'])->middleware('throttle:resend-verification');
     Route::post('login' , [LoginController::class , 'login']);
     Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink'])->middleware('throttle:3,1');

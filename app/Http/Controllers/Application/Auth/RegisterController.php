@@ -35,6 +35,6 @@ class RegisterController extends Controller
         }
 
         $user->sendEmailVerificationNotification();
-        return $this->successApi($user , 'User created successfully , you must verify email for login') ;
+        return $this->successApi($user , 'User created successfully , you must verify email for login , check your email for OTP') ;
     }
 }
