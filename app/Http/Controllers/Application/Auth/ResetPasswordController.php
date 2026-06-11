@@ -49,4 +49,36 @@ class ResetPasswordController extends Controller
         return $this->successApi(null ,'Password reset successfully' ) ;
 
     }
+
+    public function resetWithinOtp(Request $request)
+    {
+        $request->validate([
+            'email'    => 'required|email|exists:users,email',
+            'otp'      => 'required|digits:6',
+            'password' => 'required|min:8|max:25|confirmed'
+        ]);
+
+        $reset = DB::table('password_reset_tokens')->where('email', $request->email)->first();
+
+        if (!$reset) {
+            return $this->errorApi('Invalid OTP', 400);
+        }
+
+        if (Carbon::parse($reset->created_at)->addMinutes(10)->isPast()) {
+            DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+            return $this->errorApi('OTP expired', 400);
+        }
+
+        if (!Hash::check($request->otp, $reset->token)) {
+            return $this->errorApi('Invalid OTP', 400);
+        }
+
+        User::where('email', $request->email)->update([
+            'password' => $request->password
+        ]);
+
+        DB::table('password_reset_tokens')->where('email', $request->email)->delete();
+
+        return $this->successApi(null, 'Password reset successfully');
+    }
 }

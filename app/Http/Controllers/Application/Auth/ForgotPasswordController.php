@@ -36,4 +36,23 @@ class ForgotPasswordController extends Controller
         return $this->successApi(null , 'Reset link sent to your email');
 
     }
+
+    public function sendOtp(Request $request)
+    {
+        $request->validate(['email' => 'required|exists:users,email']);
+
+        $user = User::where('email' , $request->email)->first() ;
+
+        $otp = rand(100000, 999999);
+
+        DB::table('password_reset_tokens')->updateOrInsert([
+            'email' => $user->email
+        ] ,[
+            'token' => bcrypt($otp) ,
+            'created_at' => Carbon::now()
+        ]) ;
+
+        $user->notify(new ResetPasswordNotification($otp));
+        return $this->successApi(null, 'OTP sent to your email');
+    }
 }

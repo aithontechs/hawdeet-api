@@ -11,11 +11,11 @@ class ResetPasswordNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public $token;
+    public $otp;
 
-    public function __construct($token)
+    public function __construct($otp)
     {
-        $this->token = $token;
+        $this->otp = $otp;
     }
 
     public function via($notifiable)
@@ -25,11 +25,10 @@ class ResetPasswordNotification extends Notification implements ShouldQueue
 
     public function toMail($notifiable)
     {
-        $redirectUrl = config('app.frontend_url') . '/reset-password?token=' . $this->token . '&email=' . $notifiable->email ;
-        // https://blog.3azmagroup.cloud/reset-password
         return (new MailMessage)
-            ->subject('Reset Password')
-            ->line('Click below to reset your password')
-            ->action('Reset Password', $redirectUrl) ;
+            ->subject('Reset Password OTP')
+            ->greeting('Hello ' . $notifiable->name . '!')
+            ->line('Use the OTP below to reset your password. It expires in 10 minutes.')
+            ->line('**' . $this->otp . '**') ;
     }
 }

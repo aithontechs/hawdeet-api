@@ -36,8 +36,10 @@ Route::group(['prefix'=> 'v1'] , function () {
     Route::post('email/verify', [VerificationController::class, 'verify']);
     Route::post('/email/resend-verification', [VerificationController::class, 'resend'])->middleware('throttle:resend-verification');
     Route::post('login' , [LoginController::class , 'login']);
-    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink'])->middleware('throttle:3,1');
-    Route::post('/reset-password', [ResetPasswordController::class, 'reset']);
+    // Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink'])->middleware('throttle:3,1');
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendOtp'])->middleware('throttle:3,1');
+
+    Route::post('/reset-password', [ResetPasswordController::class, 'resetWithinOtp']);
     Route::get('/socialite/{provider}' , [SocialiteController::class ,'login'] ) ;
     Route::get('redirect/{provider}' , [SocialiteController::class ,'redirect']) ;
     Route::post('logout' , [LogoutController::class , 'logout'])->middleware(['auth:user-api' , 'verified']);
