@@ -25,9 +25,11 @@ class ResetPasswordNotification extends Notification implements ShouldQueue
 
     public function toMail($notifiable)
     {
+        $redirectUrl = config('app.frontend_url') . '/reset-password?token=' . $this->token . '&email=' . $notifiable->email ;
+        // https://blog.3azmagroup.cloud/reset-password
         return (new MailMessage)
             ->subject('Reset Password')
             ->line('Click below to reset your password')
-            ->action('Reset Password', url("FrontApp/reset-password?token={$this->token}&email={$notifiable->email}"));
+            ->action('Reset Password', $redirectUrl) ;
     }
 }
