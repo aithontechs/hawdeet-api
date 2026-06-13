@@ -20,6 +20,9 @@ class UserSubscription extends Model
         'payment_status',
         'canceled_at',
         'ended_reason',
+        'discount_amount',
+        'original_amount',
+        'coupon_id'
     ];
 
     protected $casts = [
@@ -27,6 +30,8 @@ class UserSubscription extends Model
         'end_at' => 'datetime',
         'canceled_at' => 'datetime',
         'price' => 'decimal:2',
+        'original_amount' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
     ];
 
     public $hidden = ['updated_at'];
@@ -48,6 +53,12 @@ class UserSubscription extends Model
     {
         return $this->belongsTo(SubscriptionPlan::class, 'plan_id');
     }
+
+    public function coupon()                
+    {
+        return $this->belongsTo(Coupon::class);
+    }
+
 
     public function payment()
     {

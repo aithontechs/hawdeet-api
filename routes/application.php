@@ -115,6 +115,7 @@ Route::group(['prefix'=> 'v1'] , function () {
         Route::get('books/{book}/progress' , [BookReadingProgressController::class , 'show']) ;
 
         // Subscription
+        Route::post('subscription-preview', [SubscriptionController::class, 'preview']);
         Route::post('subscription-plans' , [SubscriptionController::class , 'store']);
         Route::post('subscription-plans/renew',  [SubscriptionController::class, 'renew']);
 
