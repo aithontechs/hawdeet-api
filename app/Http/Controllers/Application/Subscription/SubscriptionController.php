@@ -185,7 +185,7 @@ class SubscriptionController extends Controller
                     'discount_amount' => $discount,
                 ];
             } catch (ValidationException $e) {
-                return $this->errorApi($e->errors(), 422);
+                return $this->errorApi($e->getMessage(), 422);
             }
         }
 
