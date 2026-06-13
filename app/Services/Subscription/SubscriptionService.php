@@ -122,23 +122,17 @@ class SubscriptionService
                 'payment_status' => 'paid',
             ]);
 
-            // record coupon usage بعد نجاح الـ payment فقط
-            if ($payment->coupon_id) {
-                $this->couponService->recordUsage(
-                    $payment->coupon,
-                    orderId:       $subscription->id,
-                    userId:        $payment->user_id,
-                    totalBefore:   $payment->original_amount,
-                    discountValue: $payment->discount_amount,
-                );
+            if ($subscription->coupon_id) {
+                $coupon = $subscription->coupon;
+                $this->couponService->recordUsage($coupon,orderId:$subscription->id,userId:$payment->user_id,totalBefore: $payment->original_amount,discountValue: $payment->discount_amount);
             }
 
             $previousExpiredSub = UserSubscription::query()
-                ->where('user_id', $subscription->user_id)
-                ->where('id', '!=', $subscription->id)
-                ->where('status', ['active', 'expired'])
-                ->latest('end_at')
-                ->first();
+                                        ->where('user_id', $subscription->user_id)
+                                        ->where('id', '!=', $subscription->id)
+                                        ->where('status', ['active', 'expired'])
+                                        ->latest('end_at')
+                                        ->first();
 
             if ($previousExpiredSub) {
                 UserBook::query()
