@@ -21,9 +21,9 @@ class PostService
 
     public function createPost(User|Admin $actor, array $data , ?UploadedFile $media = null): Post
     {
-        if ($actor instanceof User) {
-            abort_unless($actor->is_author, 403, 'Only authors can create posts.');
-        }
+        // if ($actor instanceof User) {
+        //     abort_unless($actor->is_author, 403, 'Only authors can create posts.');
+        // }
 
 
         $mediaPath = null;
