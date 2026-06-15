@@ -146,6 +146,7 @@ Route::group(['prefix'=> 'v1'] , function () {
             Route::get('/profile', [UserController::class ,'profile']) ;
             Route::get('/profile/{id}', [UserController::class ,'anyProfile']) ;
             Route::put('/profile', [UserController::class ,'updateProfile']) ;
+            Route::post('/profile/update', [UserController::class, 'updateProfileForApp']);
             Route::patch('change-password', [ChangePasswordController::class, 'update']) ;
         });
 

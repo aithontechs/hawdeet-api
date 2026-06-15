@@ -23,9 +23,13 @@ class StorageService
 
     public function replace(UploadedFile $newFile, ?string $oldPath,string $folder,string $disk = self::DISK_PUBLIC,?string $name = null)
     {
+        logger()->info('Avatar Replace', [
+            'old_path' => $oldPath,
+            'exists' => Storage::disk($disk)->exists($oldPath),
+        ]);
         $data = $this->upload($newFile, $folder, $disk, $name);
         $this->delete($oldPath, $disk);
-        
+
         return $data ;
     }
 

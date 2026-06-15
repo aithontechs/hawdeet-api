@@ -67,15 +67,37 @@ class UserController extends Controller
         $user = auth()->user();
 
         $data = $request->validated();
+        $oldAvatar = $user->getRawOriginal('avatar_url');
         if ($request->hasFile('avatar_url')) {
             $data['avatar_url'] = $this->storageService->replace(
                 $request->file('avatar_url'),
-                $user->avatar_url,
+                $oldAvatar,
                 'avatar/users'
             );
         }
         $user->update($data);
         $this->profileService->clearCache($user->id);
+        return $this->successApi($user, 'Profile updated successfully');
+    }
+
+    public function updateProfileForApp(UserUpdateRequest $request)
+    {
+        $user = auth()->user();
+        $data = $request->validated();
+
+        $oldAvatar = $user->getRawOriginal('avatar_url');
+        if ($request->hasFile('avatar_url')) {
+            $data['avatar_url'] = $this->storageService->replace(
+                $request->file('avatar_url'),
+                $oldAvatar,
+                'avatar/users'
+            );
+        }
+
+        $user->update($data);
+
+        $this->profileService->clearCache($user->id);
+
         return $this->successApi($user, 'Profile updated successfully');
     }
 }
