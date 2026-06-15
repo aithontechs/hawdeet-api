@@ -277,4 +277,15 @@ class SubscriptionService
     {
         return $this->couponService->calculateDiscount($coupon, $amount);
     }
+
+    public function cancelPending(User $user, int $subscriptionId): void
+    {
+        DB::transaction(function () use ($user, $subscriptionId) {
+
+            $subscription = UserSubscription::query()->where('id', $subscriptionId)->where('user_id', $user->id)->where('payment_status', 'pending')
+                ->where('status', 'inactive')->firstOrFail();
+            Payment::where('user_subscription_id', $subscription->id)->where('status', 'pending')->delete();
+            $subscription->delete();
+        });
+    }
 }

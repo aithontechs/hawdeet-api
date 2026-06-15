@@ -203,4 +203,14 @@ class SubscriptionController extends Controller
             'coupon'          => $couponData,
         ], 'Subscription payment preview');
     }
+
+    public function cancel(Request $request)
+    {
+        $request->validate([
+            'subscription_id' => 'required|integer|exists:user_subscriptions,id',
+        ]);
+        $user = auth('user-api')->user();
+        $this->subscriptionService->cancelPending($user, $request->subscription_id);
+        return $this->successApi(null, 'Pending subscription cancelled successfully.');
+    }
 }

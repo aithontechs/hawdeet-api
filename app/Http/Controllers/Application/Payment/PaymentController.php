@@ -95,6 +95,7 @@ class PaymentController extends Controller
     // for test only - not used in production
     public function callback(Request $request)
     {
+
         $isSuccess = filter_var($request->query('success'), FILTER_VALIDATE_BOOLEAN);
 
         $paymentId = $request->query('merchant_order_id');

@@ -119,7 +119,7 @@ Route::group(['prefix'=> 'v1'] , function () {
         Route::post('subscription-preview', [SubscriptionController::class, 'preview']);
         Route::post('subscription-plans' , [SubscriptionController::class , 'store']);
         Route::post('subscription-plans/renew',  [SubscriptionController::class, 'renew']);
-
+        Route::post('subscriptions/cancel', [SubscriptionController::class, 'cancel']);
 
         // Community ( Posts / Likes / Comments / Share )
         Route::apiResource('posts' , PostController::class) ;
