@@ -13,9 +13,13 @@ class PostPolicy
         //
     }
 
-    public function create(User | Admin $actor)
+    public function create(User | Admin $actor): bool
     {
-        //
+        if ($actor instanceof User) {
+            return ! is_null($actor->email_verified_at);
+        }
+
+        return true;
     }
 
     public function update(User | Admin $actor , Post $post)
