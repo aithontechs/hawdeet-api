@@ -25,6 +25,7 @@ use App\Http\Controllers\Application\Setting\ChangePasswordController;
 use App\Http\Controllers\Application\Shipping\ShippingAddressController;
 use App\Http\Controllers\Application\Subscription\SubscriptionController;
 use App\Http\Controllers\Application\User\UserController;
+use App\Http\Controllers\Application\Community\SavedPostController;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 
@@ -133,6 +134,9 @@ Route::group(['prefix'=> 'v1'] , function () {
 
         Route::post('posts/{post}/share' , [ShareController::class , 'share']);
         Route::delete('posts/{post}/share' , [ShareController::class , 'unshare']);
+
+        Route::get('saved-posts',           [SavedPostController::class, 'index']);
+        Route::post('saved-posts/{post}',   [SavedPostController::class, 'toggle']);
 
         Route::get('/users/{id}/follow-toggle' , [FollowController::class , 'toggle']) ;
         Route::get('/users/{id}/followers' , [FollowController::class , 'followers']) ;

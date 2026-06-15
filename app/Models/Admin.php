@@ -46,6 +46,11 @@ class Admin extends Authenticatable implements JWTSubject
         return $disk->url($avatar);
     }
 
+    public function savedPosts()
+    {
+        return $this->morphMany(SavePost::class, 'saver');
+    }
+
 
     public function getJWTIdentifier()
     {
