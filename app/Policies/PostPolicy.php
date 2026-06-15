@@ -15,8 +15,7 @@ class PostPolicy
 
     public function create(User | Admin $actor)
     {
-        if($actor instanceof Admin) return true ;
-        return $actor->is_author ;
+        //
     }
 
     public function update(User | Admin $actor , Post $post)
