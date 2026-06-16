@@ -96,7 +96,8 @@ class CartService
     public function getItems(?string $cookieId, ?User $user)
     {
         return Cart::forSession($cookieId, $user?->id)
-            ->with('book:id,title,price,physical_price,is_subscription_included,cover,type')
+            ->with(['book:id,title,price,physical_price,is_subscription_included,cover,type,author_id' , 'book.author:id,name'])
+
             ->get()
             ->map(function (Cart $item) use ($user) {
                 $price = $item->item_type === 'digital'
@@ -115,6 +116,7 @@ class CartService
                     'in_subscription' => $item->item_type === 'digital'
                         && $user?->hasActiveSubscription()
                         && $item->book->is_subscription_included,
+                    'author' => $item->book->author?->name
                 ];
             });
     }
