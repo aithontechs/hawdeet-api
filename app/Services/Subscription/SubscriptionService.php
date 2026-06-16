@@ -10,6 +10,7 @@ use App\Services\Payment\PaymobService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class SubscriptionService
@@ -174,8 +175,26 @@ class SubscriptionService
     {
         $payment->refresh();
 
+        if ($payment->status === 'failed') {
+            $payment->update([
+                'status'           => 'pending',
+                'paymob_order_id'  => null,
+                'failure_reason'   => null,
+                'gateway_response' => null,
+            ]);
+            $payment->refresh();
+        }
+
         if ($payment->paymob_order_id) {
-            return $this->resumePaymobPayment($payment, $request, $method);
+            try {
+                return $this->resumePaymobPayment($payment, $request, $method);
+            } catch (\Exception $e) {
+                Log::warning("Paymob resume failed for payment #{$payment->id}, creating new order", [
+                    'error' => $e->getMessage(),
+                ]);
+                $payment->update(['paymob_order_id' => null]);
+                $payment->refresh();
+            }
         }
 
         $amountCents = (int) ($payment->amount * 100);

@@ -73,7 +73,7 @@ class BookPurchaseService
     public function createPendingPayment(Order $order, User $user, string $method): Payment
     {
         $existing = Payment::where('order_id', $order->id)
-            ->where('status', 'pending')
+            ->where('status',  ['pending', 'failed'])
             ->first();
 
         if ($existing) {
@@ -95,6 +95,16 @@ class BookPurchaseService
     {
         $payment->refresh();
 
+        if ($payment->status === 'failed') {
+            $payment->update([
+                'status'           => 'pending',
+                'paymob_order_id'  => null,
+                'failure_reason'   => null,
+                'gateway_response' => null,
+            ]);
+            $payment->refresh();
+        }
+
         Log::info('initiatePaymobPayment', [
             'payment_id'      => $payment->id,
             'paymob_order_id' => $payment->paymob_order_id,
@@ -102,7 +112,15 @@ class BookPurchaseService
         ]);
 
         if ($payment->paymob_order_id) {
-            return $this->resumePaymobPayment($payment, $request, $method);
+            try {
+                return $this->resumePaymobPayment($payment, $request, $method);
+            } catch (\Exception $e) {
+                Log::warning("Paymob resume failed for payment #{$payment->id}, creating new order", [
+                    'error' => $e->getMessage(),
+                ]);
+                $payment->update(['paymob_order_id' => null]);
+                $payment->refresh();
+            }
         }
 
         $amountCents = (int) ($payment->amount * 100);

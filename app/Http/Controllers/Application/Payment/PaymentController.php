@@ -53,7 +53,6 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Invalid payload: missing merchant_order_id'], 400);
         }
 
-        // ✅ FIX #3: Extracted into reusable private method
         $paymentId = $this->extractPaymentId((string) $merchantOrderId);
         $payment   = Payment::find($paymentId);
 
@@ -120,7 +119,7 @@ class PaymentController extends Controller
         }
 
         if ($payment->isPaid()) {
-            return $this->successApi(null, message: 'Payment is already paid');
+            return $this->successApi(null, message: 'Payment completed successfully');
         }
 
         if (!$isSuccess) {
