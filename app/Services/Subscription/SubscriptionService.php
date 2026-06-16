@@ -307,4 +307,5 @@ class SubscriptionService
             $subscription->delete();
         });
     }
+    
 }

@@ -42,6 +42,11 @@ class CartService
 
         if ($user) {
             if ($itemType === 'digital') {
+                if($user->hasActiveSubscription()){
+                    throw ValidationException::withMessages([
+                        'subscription' => 'You already own the subscription',
+                    ]);
+                }
                 $alreadyOwned = $user->userBooks()->where('book_id', $bookId)->exists();
                 if ($alreadyOwned) {
                     throw ValidationException::withMessages([
