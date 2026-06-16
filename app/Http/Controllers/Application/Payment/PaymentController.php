@@ -41,10 +41,10 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Invalid payload'], 400);
         }
 
-        // if (!$this->paymob->verifyHmacFromObj($obj, $hmac)) {
-        //     Log::warning('Paymob Webhook: Invalid HMAC');
-        //     return response()->json(['message' => 'Invalid HMAC'], 403);
-        // }
+        if (!$this->paymob->verifyHmac($obj, $hmac)) {
+            Log::warning('Paymob Webhook: Invalid HMAC');
+            return response()->json(['message' => 'Invalid HMAC'], 403);
+        }
 
         $merchantOrderId = data_get($obj, 'order.merchant_order_id');
 

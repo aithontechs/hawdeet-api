@@ -148,24 +148,40 @@ class PaymobService
     public function verifyHmac(array $data, string $receivedHmac): bool
     {
         $fields = [
-            'amount_cents', 'created_at', 'currency', 'error_occured',
-            'has_parent_transaction', 'id', 'integration_id', 'is_3d_secure',
-            'is_auth', 'is_capture', 'is_refunded', 'is_standalone_payment',
-            'is_voided', 'order', 'owner', 'pending',
+            'amount_cents',
+            'created_at',
+            'currency',
+            'error_occured',
+            'has_parent_transaction',
+            'id',
+            'integration_id',
+            'is_3d_secure',
+            'is_auth',
+            'is_capture',
+            'is_refunded',
+            'is_standalone_payment',
+            'is_voided',
+            'order.id',
+            'owner',
+            'pending',
+            'source_data.pan',
+            'source_data.sub_type',
+            'source_data.type',
             'success',
         ];
 
         $hashString = '';
+
         foreach ($fields as $field) {
-            $hashString .= $data[$field] ?? '';
+            $value = data_get($data, $field);
+
+            if (is_bool($value)) {
+                $value = $value ? 'true' : 'false';
+            }
+            $hashString .= $value;
         }
 
-        $hashString .= $data['source_data.pan']      ?? '';
-        $hashString .= $data['source_data.sub_type'] ?? '';
-        $hashString .= $data['source_data.type']     ?? '';
-
         $computed = hash_hmac('sha512', $hashString, config('paymob.hmac_secret'));
-
         return hash_equals($computed, $receivedHmac);
     }
 
