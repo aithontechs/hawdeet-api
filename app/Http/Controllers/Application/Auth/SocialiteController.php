@@ -13,7 +13,7 @@ class SocialiteController extends Controller
 
     public function login($provider)
     {
-        $allowedProviders = ['google', 'github'];
+        $allowedProviders = ['google', 'github' , 'facebook'];
         abort_unless(in_array($provider, $allowedProviders), 404);
         $url = Socialite::driver($provider)->stateless()->redirect()->getTargetUrl();
         return $this->successApi(['url' => $url], 'Redirect to social provider');
