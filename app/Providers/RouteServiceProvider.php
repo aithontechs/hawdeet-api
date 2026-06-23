@@ -54,7 +54,7 @@ class RouteServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('resend-verification', function (Request $request) {
-            return Limit::perMinutes(2, 1)  
+            return Limit::perMinutes(2, 1)
                 ->by($request->input('email') ?: $request->ip())
                 ->response(function () {
                     return response()->json([

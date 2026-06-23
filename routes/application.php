@@ -38,7 +38,7 @@ Route::group(['prefix'=> 'v1'] , function () {
     Route::post('email/verify', [VerificationController::class, 'verify']);
     Route::post('/email/resend-verification', [VerificationController::class, 'resend'])->middleware('throttle:resend-verification');
 
-    Route::post('login' , [LoginController::class , 'login']);
+    Route::post('login' , [LoginController::class , 'login'])->middleware('throttle:login');
 
     Route::post('/forgot-password', [ForgotPasswordController::class, 'sendOtp'])->middleware('throttle:3,1');
     Route::post('/forgot-password/verify-otp', [ForgotPasswordController::class, 'verifyOtp']);
