@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Http\Requests\Dashboard\User;
+namespace App\Http\Requests\Dashboard\Author;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
-class UserRequest extends FormRequest
+class AuthorRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -24,7 +24,7 @@ class UserRequest extends FormRequest
                 'email',
                 Rule::unique('users', 'email')->ignore($userId),
             ],
-            'phone' => 'nullable|digits:11|unique:users,phone',
+            'phone' => 'nullable|regex:/^01[0125][0-9]{8}$/|unique:users,phone',
             'password' => [
                 $this->isMethod('post') ? 'required' : 'sometimes',
                 'max:25',
@@ -35,7 +35,6 @@ class UserRequest extends FormRequest
                     ->symbols(),
             ],
             'birth_date' => $this->isMethod('post') ? 'required|date' : 'sometimes|date',
-            'is_author' => 'nullable|boolean',
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Dashboard\Admins\AdminController;
 use App\Http\Controllers\Dashboard\Auth\{AuthController ,ForgotPasswordController , LoginController , LogoutController , ResetPasswordController};
+use App\Http\Controllers\Dashboard\Author\AuthorController;
 use App\Http\Controllers\Dashboard\Authorization\{PermissionController , RoleController };
 use App\Http\Controllers\Dashboard\Book\BookController;
 use App\Http\Controllers\Dashboard\Category\CategoryController;
@@ -36,6 +37,11 @@ Route::group(['prefix'=> 'v1/admin'], function () {
         Route::apiResource('permissions' , PermissionController::class) ;
         Route::apiResource('categories' , CategoryController::class) ;
         Route::apiResource('users' , UserController::class) ;
+        Route::get('authors/stats' , [AuthorController::class , 'stats'] ) ;
+        Route::apiResource('authors' , AuthorController::class ) ;
+        Route::get('list/authors' , [AuthorController::class , 'list'] ) ;
+
+
 
         // ======= Books =========
         Route::apiResource('books' , BookController::class) ;

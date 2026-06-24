@@ -28,33 +28,39 @@ class ProcessBookFiles implements ShouldQueue
         private int    $previewEnd,
     ) {}
 
-    // ✅ جلب مسار QPDF من config أو البحث عنه يدوياً
     private function getQpdfBinary(): ?string
     {
-        // أولاً: من الـ .env عبر config
         $configured = config('services.qpdf.binary');
         if ($configured && file_exists($configured) && is_executable($configured)) {
             return $configured;
         }
 
-        // ثانياً: مسارات شائعة على shared hosting
-        $commonPaths = [
-            '/home/aithonon/bin/qpdf',
-            '/usr/local/bin/qpdf',
-            '/usr/bin/qpdf',
-            '/bin/qpdf',
-        ];
-
-        foreach ($commonPaths as $path) {
-            if (file_exists($path) && is_executable($path)) {
-                return $path;
+        if (PHP_OS_FAMILY === 'Windows') {
+            $windowsPaths = [
+                'C:\Program Files\qpdf\bin\qpdf.exe',
+                'C:\Program Files (x86)\qpdf\bin\qpdf.exe',
+                'C:\qpdf\bin\qpdf.exe',
+            ];
+            foreach ($windowsPaths as $path) {
+                if (file_exists($path)) return $path;
             }
-        }
 
-        // ثالثاً: محاولة which (قد تفشل في queue)
-        exec('which qpdf 2>/dev/null', $out, $code);
-        if ($code === 0 && !empty($out[0]) && file_exists(trim($out[0]))) {
-            return trim($out[0]);
+            exec('where qpdf 2>NUL', $out, $code);
+            if ($code === 0 && !empty($out[0])) return trim($out[0]);
+
+        } else {
+            $linuxPaths = [
+                '/home/aithonon/bin/qpdf',
+                '/usr/local/bin/qpdf',
+                '/usr/bin/qpdf',
+                '/bin/qpdf',
+            ];
+            foreach ($linuxPaths as $path) {
+                if (file_exists($path) && is_executable($path)) return $path;
+            }
+
+            exec('which qpdf 2>/dev/null', $out, $code);
+            if ($code === 0 && !empty($out[0])) return trim($out[0]);
         }
 
         return null;

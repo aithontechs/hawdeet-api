@@ -49,7 +49,6 @@ class UserController extends Controller
     {
         $user->delete();
         return $this->successApi(null ,'User deleted successfully') ;
-
     }
 
 }
