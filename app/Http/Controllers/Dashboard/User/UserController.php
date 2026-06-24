@@ -19,8 +19,15 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
-        $users = User::query()->where('is_author' , 0)->latest()->search($request->search)->type($request->type)
-                    ->paginate(15);
+        $users = User::query()->where('is_author' , 0)->latest()->search($request->search)
+            ->when($request->filled('plan_id'), function ($query) use ($request) {
+                $query->whereHas('subscriptions', function ($q) use ($request) {
+                    $q->where('plan_id', $request->plan_id)
+                    ->where('status', 'active');
+                });
+        })->when($request->filled('is_active') , function($query) use ($request){
+            $query->where('is_active' , $request->is_active) ;
+        })->paginate(15);
         return $this->successApi($users , 'Users Fetched successfully') ;
     }
 
