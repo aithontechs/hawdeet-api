@@ -28,6 +28,38 @@ class ProcessBookFiles implements ShouldQueue
         private int    $previewEnd,
     ) {}
 
+    // ✅ جلب مسار QPDF من config أو البحث عنه يدوياً
+    private function getQpdfBinary(): ?string
+    {
+        // أولاً: من الـ .env عبر config
+        $configured = config('services.qpdf.binary');
+        if ($configured && file_exists($configured) && is_executable($configured)) {
+            return $configured;
+        }
+
+        // ثانياً: مسارات شائعة على shared hosting
+        $commonPaths = [
+            '/home/aithonon/bin/qpdf',
+            '/usr/local/bin/qpdf',
+            '/usr/bin/qpdf',
+            '/bin/qpdf',
+        ];
+
+        foreach ($commonPaths as $path) {
+            if (file_exists($path) && is_executable($path)) {
+                return $path;
+            }
+        }
+
+        // ثالثاً: محاولة which (قد تفشل في queue)
+        exec('which qpdf 2>/dev/null', $out, $code);
+        if ($code === 0 && !empty($out[0]) && file_exists(trim($out[0]))) {
+            return trim($out[0]);
+        }
+
+        return null;
+    }
+
     public function handle(StorageService $storage): void
     {
         $book = Book::findOrFail($this->bookId);
@@ -49,7 +81,13 @@ class ProcessBookFiles implements ShouldQueue
             $storage->put($filePath, $fileContents, StorageService::DISK_PRIVATE);
             $absolutePath = Storage::disk(StorageService::DISK_PRIVATE)->path($filePath);
 
-            $compatTmp   = $this->convertToCompatiblePdf($absolutePath);
+            $qpdfBin = $this->getQpdfBinary();
+
+            Log::info('ProcessBookFiles: qpdf binary resolved', [
+                'qpdf_bin' => $qpdfBin ?? 'NOT FOUND',
+            ]);
+
+            $compatTmp   = $this->convertToCompatiblePdf($absolutePath, $qpdfBin);
             $workingPath = $compatTmp ?? $absolutePath;
 
             Log::info('ProcessBookFiles: using path', [
@@ -58,7 +96,7 @@ class ProcessBookFiles implements ShouldQueue
                 'working'  => $workingPath,
             ]);
 
-            $totalPages = $this->countPages($workingPath);
+            $totalPages = $this->countPages($workingPath, $qpdfBin);
             if ($totalPages === 0) {
                 throw new \RuntimeException('Could not determine page count');
             }
@@ -100,55 +138,27 @@ class ProcessBookFiles implements ShouldQueue
         }
     }
 
-    // private function countPages(string $absolutePath): int
-    // {
-    //     try {
-    //         $parser = new Parser();
-    //         $pdf    = $parser->parseFile($absolutePath);
-    //         $pages  = $pdf->getPages();
-    //         $count  = count($pages);
-
-    //         if ($count > 0) {
-    //             Log::info('Page count via smalot', ['count' => $count]);
-    //             return $count;
-    //         }
-    //     } catch (\Throwable $e) {
-    //         Log::warning('smalot/pdfparser failed', ['error' => $e->getMessage()]);
-    //     }
-
-    //     try {
-    //         $content = file_get_contents($absolutePath);
-    //         preg_match_all('/\/Type\s*\/Page[^s]/', $content, $matches);
-    //         $count = count($matches[0]);
-
-    //         if ($count > 0) {
-    //             Log::info('Page count via regex', ['count' => $count]);
-    //             return $count;
-    //         }
-    //     } catch (\Throwable $e) {
-    //         Log::warning('Regex page count failed', ['error' => $e->getMessage()]);
-    //     }
-
-    //     return 0;
-    // }
-    private function countPages(string $absolutePath): int
+    private function countPages(string $absolutePath, ?string $qpdfBin): int
     {
-        // ١. QPDF (الأدق)
-        $checkCmd = PHP_OS_FAMILY === 'Windows' ? 'where qpdf 2>NUL' : 'which qpdf 2>/dev/null';
-        exec($checkCmd, $out, $code);
-
-        if ($code === 0) {
-            exec('qpdf --show-npages ' . escapeshellarg($absolutePath), $output, $exitCode);
+        if ($qpdfBin) {
+            exec(escapeshellarg($qpdfBin) . ' --show-npages ' . escapeshellarg($absolutePath) . ' 2>&1', $output, $exitCode);
             if ($exitCode === 0 && is_numeric(trim($output[0] ?? ''))) {
+                Log::info('Page count via QPDF', ['count' => (int) trim($output[0])]);
                 return (int) trim($output[0]);
             }
+            Log::warning('QPDF --show-npages failed', [
+                'exit_code' => $exitCode,
+                'output'    => implode("\n", $output),
+            ]);
         }
 
-        // ٢. Regex كـ fallback
         try {
             $content = file_get_contents($absolutePath);
             preg_match_all('/\/Type\s*\/Page[^s]/', $content, $matches);
-            if (count($matches[0]) > 0) return count($matches[0]);
+            if (count($matches[0]) > 0) {
+                Log::info('Page count via regex', ['count' => count($matches[0])]);
+                return count($matches[0]);
+            }
         } catch (\Throwable $e) {
             Log::warning('Regex page count failed', ['error' => $e->getMessage()]);
         }
@@ -156,21 +166,17 @@ class ProcessBookFiles implements ShouldQueue
         return 0;
     }
 
-    private function convertToCompatiblePdf(string $absolutePath): ?string
+    private function convertToCompatiblePdf(string $absolutePath, ?string $qpdfBin): ?string
     {
-        $checkCmd = PHP_OS_FAMILY === 'Windows' ? 'where qpdf 2>NUL' : 'which qpdf 2>/dev/null';
-        exec($checkCmd, $out, $code);
-
-        if ($code !== 0) {
-            Log::warning('QPDF not installed, skipping preprocessing');
+        if (!$qpdfBin) {
+            Log::warning('QPDF not found, skipping preprocessing');
             return null;
         }
 
         $outputPath = sys_get_temp_dir() . DIRECTORY_SEPARATOR . Str::uuid() . '_compat.pdf';
 
-        // ✅ object-streams=disable فقط — هو اللي FPDI محتاجه بدون تكبير الملف
         $cmd = implode(' ', [
-            'qpdf',
+            escapeshellarg($qpdfBin),
             '--object-streams=disable',
             escapeshellarg($absolutePath),
             escapeshellarg($outputPath),
@@ -180,15 +186,12 @@ class ProcessBookFiles implements ShouldQueue
         exec($cmd, $output, $exitCode);
 
         Log::info('QPDF conversion attempt', [
+            'cmd'       => $cmd,
             'exit_code' => $exitCode,
             'output'    => implode("\n", $output),
         ]);
 
         if ($exitCode === 0 && file_exists($outputPath) && filesize($outputPath) > 0) {
-            Log::info('QPDF conversion successful', [
-                'original_size' => filesize($absolutePath),
-                'compat_size'   => filesize($outputPath),
-            ]);
             return $outputPath;
         }
 
@@ -202,15 +205,13 @@ class ProcessBookFiles implements ShouldQueue
         int            $end,
         StorageService $storage
     ): ?string {
-        // ✅ بكده FPDI هتشتغل لأن workingPath هو الـ compatible PDF
         try {
             return $this->generateWithFpdi($workingPath, $start, $end, $storage);
         } catch (\Throwable $e) {
-            Log::error('FPDI preview failed even with compatible PDF', [
+            Log::error('FPDI preview failed', [
                 'error' => $e->getMessage(),
                 'path'  => $workingPath,
             ]);
-            // ✅ مش بنعمل fallback للـ PDF الأصلي تاني
             throw $e;
         }
     }
@@ -241,40 +242,11 @@ class ProcessBookFiles implements ShouldQueue
         return $this->storePreview($previewTmp, $storage);
     }
 
-    private function copyAsPreview(string $absolutePath, StorageService $storage): string
-    {
-        $previewName = Str::uuid() . '_preview.pdf';
-        $previewPath = 'books/previews/' . $previewName;
-        $storage->put($previewPath, file_get_contents($absolutePath), StorageService::DISK_PRIVATE);
-        return $previewPath;
-    }
-
     private function storePreview(string $tmpPath, StorageService $storage): string
     {
         $previewPath = 'books/previews/' . basename($tmpPath);
         $storage->put($previewPath, file_get_contents($tmpPath), StorageService::DISK_PRIVATE);
         @unlink($tmpPath);
         return $previewPath;
-    }
-
-    private function commandExists(string $command): bool
-    {
-        $check = PHP_OS_FAMILY === 'Windows'
-            ? "where {$command} 2>NUL"
-            : "which {$command} 2>/dev/null";
-
-        exec($check, $output, $exitCode);
-        return $exitCode === 0;
-    }
-
-    private function countPagesViaQpdf(string $absolutePath): int
-    {
-        exec('qpdf --show-npages ' . escapeshellarg($absolutePath), $output, $exitCode);
-
-        if ($exitCode === 0 && !empty($output[0]) && is_numeric(trim($output[0]))) {
-            return (int) trim($output[0]);
-        }
-
-        return 0;
     }
 }

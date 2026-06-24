@@ -44,4 +44,7 @@ return [
         'redirect' => env('GOOGLE_CLIENT_REDIRECT'),
     ],
 
+    'qpdf' => [
+        'binary' => env('QPDF_BINARY', '/usr/local/bin/qpdf'),
+    ],
 ];
