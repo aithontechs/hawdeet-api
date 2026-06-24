@@ -19,7 +19,7 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
-        $users = User::query()->latest()->search($request->search)->type($request->type)
+        $users = User::query()->where('is_author' , 0)->latest()->search($request->search)->type($request->type)
                     ->paginate(15);
         return $this->successApi($users , 'Users Fetched successfully') ;
     }
