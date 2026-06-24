@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 class ResetPasswordController extends Controller
 {
@@ -19,7 +20,7 @@ class ResetPasswordController extends Controller
         $request->validate([
             'email' => 'required|email|exists:users,email',
             'token' => 'required',
-            'password' => 'required|min:8|max:25|confirmed'
+            'password' => ['required' , 'confirmed' , 'max:50', Password::min(12)->mixedCase()->symbols()->numbers()]
         ]);
 
         $reset = DB::table('password_reset_tokens')
@@ -55,7 +56,7 @@ class ResetPasswordController extends Controller
         $request->validate([
             'email'    => 'required|email|exists:users,email',
             'otp'      => 'required|digits:6',
-            'password' => 'required|min:8|max:25|confirmed'
+            'password' => ['required' , 'confirmed' , 'max:50', Password::min(12)->mixedCase()->symbols()->numbers()]
         ]);
 
         $reset = DB::table('password_reset_tokens')->where('email', $request->email)->first();

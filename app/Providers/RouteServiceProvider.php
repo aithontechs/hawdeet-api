@@ -49,8 +49,32 @@ class RouteServiceProvider extends ServiceProvider
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });
 
+        // application
         RateLimiter::for('login', function (Request $request) {
-            return Limit::perMinute(10)->by($request->email . '|' . $request->ip());
+            $key = strtolower(trim($request->login)) . '|' . $request->ip();
+
+                return [
+
+                    Limit::perHour(10)->by('long:' . $key)->response(function (Request $request, array $headers) {
+                        $seconds = $headers['Retry-After'] ?? 0;
+
+                        $time = $seconds >= 60 ? ceil($seconds / 60) . ' دقيقة' : $seconds . ' ثانية';
+
+                            return response()->json([
+                                'success' => false,
+                                'message' => "تم حظر الدخول لتجاوز الحد المسموح بعدد المحاولات الممكنه يمكنك المحاولة بعد {$time}"
+                            ], 429, $headers);
+                        }),
+
+                    Limit::perMinutes(2, 3)->by('short:' . $key)->response(function (Request $request, array $headers) {
+                            $seconds = $headers['Retry-After'] ?? 0;
+                            return response()->json([
+                                'success' => false,
+                                'message' => "تم حظر الدخول لتجاوز الحد المسموح بعدد المحاولات الممكنه يمكنك المحاولة بعد {$seconds} ثانية"
+                            ], 429, $headers);
+                        }),
+
+                ];
         });
 
         RateLimiter::for('resend-verification', function (Request $request) {
@@ -62,6 +86,34 @@ class RouteServiceProvider extends ServiceProvider
                         'message' => 'Please wait before requesting another email',
                     ], 429);
                 });
+        });
+
+
+        RateLimiter::for('login-admin', function (Request $request) {
+            $key = strtolower(trim($request->email)) . '|' . $request->ip();
+
+                return [
+
+                    Limit::perHour(10)->by('long:' . $key)->response(function (Request $request, array $headers) {
+                        $seconds = $headers['Retry-After'] ?? 0;
+
+                        $time = $seconds >= 60 ? ceil($seconds / 60) . ' دقيقة' : $seconds . ' ثانية';
+
+                            return response()->json([
+                                'success' => false,
+                                'message' => "تم حظر الدخول لتجاوز الحد المسموح بعدد المحاولات الممكنه يمكنك المحاولة بعد {$time}"
+                            ], 429, $headers);
+                        }),
+
+                    Limit::perMinutes(2, 3)->by('short:' . $key)->response(function (Request $request, array $headers) {
+                            $seconds = $headers['Retry-After'] ?? 0;
+                            return response()->json([
+                                'success' => false,
+                                'message' => "تم حظر الدخول لتجاوز الحد المسموح بعدد المحاولات الممكنه يمكنك المحاولة بعد {$seconds} ثانية"
+                            ], 429, $headers);
+                        }),
+
+                ];
         });
     }
 }

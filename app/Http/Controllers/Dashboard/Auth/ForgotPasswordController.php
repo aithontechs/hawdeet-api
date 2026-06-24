@@ -9,31 +9,85 @@ use App\Traits\ResponseApi;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 class ForgotPasswordController extends Controller
 {
     use ResponseApi ;
 
-    public function sendResetLink(Request $request)
+    public function sendOtp(Request $request)
     {
-        $request->validate([
-            'email' => 'required|exists:admins,email'
-        ]);
-        $admin = Admin::where('email', $request->email)->first();
+        $request->validate(['email' => 'required|exists:admins,email']);
+        return $this->sendPasswordResetOtp($request->email) ;
+    }
 
-        $token = Str::random(60);
+    public function resendOtp(Request $request)
+    {
+        $request->validate(['email' => 'required|email|exists:admins,email']);
+        return  $this->sendPasswordResetOtp($request->email) ;
+    }
+
+    private function sendPasswordResetOtp(string $email)
+    {
+        $user = Admin::where('email', $email)->first();
+
+        $reset = DB::table('password_reset_tokens')->where('email', $email)->first();
+
+        if (
+            $reset &&
+            Carbon::parse($reset->created_at)->addSeconds(60)->isFuture()
+        ) {
+            return $this->errorApi(
+                'Please wait 60 seconds before requesting a new OTP',
+                429
+            );
+        }
+
+        $otp = random_int(100000, 999999);
 
         DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $admin->email],
+            ['email' => $user->email],
             [
-                'token' => bcrypt($token),
-                'created_at' => Carbon::now()
+                'token' => bcrypt($otp),
+                'created_at' => now(),
             ]
         );
 
-        $admin->notify(new ResetPasswordNotification($token));
-        return $this->successApi(null , 'Reset link sent to your email');
+        $user->notify(new ResetPasswordNotification($otp));
 
+        return $this->successApi(
+            null,
+            'OTP sent successfully'
+        );
+    }
+
+    public function verifyOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:admins,email',
+            'otp'   => 'required|digits:6',
+        ]);
+
+        $reset = DB::table('password_reset_tokens')->where('email', $request->email)->first();
+
+        if (!$reset) {
+            return $this->errorApi('Invalid OTP', 400);
+        }
+
+        if (Carbon::parse($reset->created_at)->addMinutes(10)->isPast()) {
+
+            DB::table('password_reset_tokens')
+                ->where('email', $request->email)
+                ->delete();
+
+            return $this->errorApi('OTP expired', 400);
+        }
+
+        if (! Hash::check($request->otp, $reset->token)) {
+            return $this->errorApi('Invalid OTP', 400);
+        }
+
+        return $this->successApi(['verified' => true], 'OTP verified successfully');
     }
 }

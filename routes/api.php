@@ -22,9 +22,12 @@ Route::group(['prefix'=> 'v1/admin'], function () {
 
     // Authentication of system
     Route::post('register',[AuthController::class , 'register'])->name('register') ;
-    Route::post('login',[LoginController::class , 'login'])->middleware('throttle:login') ;
-    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink'])->middleware('throttle:3,1');
-    Route::post('/reset-password', [ResetPasswordController::class, 'reset']);
+    Route::post('login',[LoginController::class , 'login'])->middleware('throttle:login-admin') ;
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendOtp'])->middleware('throttle:resend-verification');
+    Route::post('/forgot-password/verify-otp', [ForgotPasswordController::class, 'verifyOtp']);
+    Route::post('/forgot-password/resend-otp', [ForgotPasswordController::class, 'resendOtp'])->middleware('throttle:resend-verification');
+    Route::post('/reset-password', [ResetPasswordController::class, 'resetWithinOtp']);
+
     Route::post('logout',[LogoutController::class , 'logout'])->name('logout')->middleware('auth:admin-api') ;
 
     // Authorization

@@ -35,7 +35,17 @@ class BookController extends Controller
                     $q->where('title', 'like', "%{$request->search}%")
                       ->orWhereHas('author', fn($q) =>
                           $q->where('name', 'like', "%{$request->search}%")
-                      );
+                      )->orWhereHas('categories', function ($q) use ($request) {
+                        $q->where('name', 'like', "%{$request->search}%")
+
+                            ->orWhereHas('parent', function ($q) use ($request) {
+                                $q->where('name', 'like', "%{$request->search}%");
+                            })
+
+                            ->orWhereHas('children', function ($q) use ($request) {
+                                $q->where('name', 'like', "%{$request->search}%");
+                            });
+                    });
                 })
             )
             ->when($request->filled('category_id'), function ($q) use ($request) {

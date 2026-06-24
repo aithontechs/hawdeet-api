@@ -16,13 +16,9 @@ class UserUpdateRequest extends FormRequest
     {
         return [
             'name' => 'sometimes|string|max:30|min:4',
-            'phone' => [
-                'sometimes',
-                'digits:11',
-                Rule::unique('users', 'phone')->Ignore(auth()->id()),
-            ],
+            'phone' => ['sometimes', 'regex:/^01[0125][0-9]{8}$/' , 'unique:users,phone' , Rule::unique('users', 'phone')->Ignore(auth()->id())],
             'birth_date' => 'sometimes|date',
-            'avatar_url' => 'sometimes|image',
+            'avatar_url' => 'sometimes|image|max:5120',
             'bio' => 'sometimes|string|max:1000'
         ];
     }

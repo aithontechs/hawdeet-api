@@ -40,9 +40,9 @@ Route::group(['prefix'=> 'v1'] , function () {
 
     Route::post('login' , [LoginController::class , 'login'])->middleware('throttle:login');
 
-    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendOtp'])->middleware('throttle:3,1');
+    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendOtp'])->middleware('throttle:resend-verification');
     Route::post('/forgot-password/verify-otp', [ForgotPasswordController::class, 'verifyOtp']);
-    Route::post('/forgot-password/resend-otp', [ForgotPasswordController::class, 'resendOtp'])->middleware('throttle:3,1');
+    Route::post('/forgot-password/resend-otp', [ForgotPasswordController::class, 'resendOtp'])->middleware('throttle:resend-verification');
     Route::post('/reset-password', [ResetPasswordController::class, 'resetWithinOtp']);
 
     Route::get('/socialite/{provider}' , [SocialiteController::class ,'login'] ) ;
