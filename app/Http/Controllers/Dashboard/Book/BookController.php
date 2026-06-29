@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Dashboard\Book;
 
+use App\Exports\BooksExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dashboard\Book\BookStoreRequest;
 use App\Http\Requests\Dashboard\Book\BookUpdateRequest;
@@ -9,6 +10,7 @@ use App\Models\Book;
 use App\Services\Book\BookService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
@@ -89,6 +91,14 @@ class BookController extends Controller
         abort_unless($book->isDigital(), 403, 'This book has no digital version.');
         return $this->bookService->streamPreview($book);
     }
+
+    public function export(Request $request)
+    {
+        $this->authorize('viewAny', Book::class ) ;
+        $fileName = 'books_' . now()->format('Y_m_d_His') . '.xlsx';
+        return Excel::download(new BooksExport($request), $fileName);
+    }
+
 
 
 

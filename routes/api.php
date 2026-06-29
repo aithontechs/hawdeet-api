@@ -48,6 +48,7 @@ Route::group(['prefix'=> 'v1/admin'], function () {
 
 
         // ======= Books =========
+        Route::get('books/export', [BookController::class, 'export']);
         Route::apiResource('books' , BookController::class) ;
         Route::get('books/stream/{book}' , [BookController::class , 'streamFull']) ;
         Route::get('books/preview/{book}' , [BookController::class , 'streamPreview']) ;
