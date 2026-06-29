@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Dashboard\User;
 
+use App\Exports\UsersExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dashboard\User\UserRequest;
 use App\Models\User;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class UserController extends Controller
 {
@@ -56,6 +58,12 @@ class UserController extends Controller
     {
         $user->delete();
         return $this->successApi(null ,'User deleted successfully') ;
+    }
+
+    public function export(Request $request)
+    {
+        $fileName = 'users_' . now()->format('Y_m_d_His') . '.xlsx';
+        return Excel::download(new UsersExport($request->search), $fileName);
     }
 
 }

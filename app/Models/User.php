@@ -160,6 +160,13 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
             ->exists();
     }
 
+    public function activeSubscriptions()
+    {
+        return $this->hasOne(UserSubscription::class)
+            ->where('status', 'active')
+            ->latestOfMany('end_at');
+    }
+
 
 
     public function follow(int $userId): void
@@ -250,4 +257,6 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
 
         $this->notify(new VerifyEmailNotification($otp));
     }
+
+
 }

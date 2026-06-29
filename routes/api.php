@@ -36,7 +36,11 @@ Route::group(['prefix'=> 'v1/admin'], function () {
         Route::apiResource('roles' , RoleController::class) ;
         Route::apiResource('permissions' , PermissionController::class) ;
         Route::apiResource('categories' , CategoryController::class) ;
+
+        Route::get('users/export', [UserController::class, 'export']);
         Route::apiResource('users' , UserController::class) ;
+
+        Route::get('authors/export', [AuthorController::class, 'export']);
         Route::get('authors/stats' , [AuthorController::class , 'stats'] ) ;
         Route::apiResource('authors' , AuthorController::class ) ;
         Route::get('list/authors' , [AuthorController::class , 'list'] ) ;

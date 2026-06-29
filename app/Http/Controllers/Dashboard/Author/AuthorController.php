@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Dashboard\Author;
 
+use App\Exports\AuthorsExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dashboard\Author\AuthorRequest;
 use App\Models\Book;
 use App\Models\User;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class AuthorController extends Controller
 {
@@ -90,5 +92,12 @@ class AuthorController extends Controller
             'new_authors' => $stats->new_authors,
             'average_rating' => round($averageBooksPerAuthor ?? 0, 2),
         ], 'Stats of authors fetched successfully');
+    }
+
+
+    public function export(Request $request)
+    {
+        $fileName = 'authors_' . now()->format('Y_m_d_His') . '.xlsx';
+        return Excel::download(new AuthorsExport($request->search), $fileName);
     }
 }
