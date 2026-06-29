@@ -31,12 +31,13 @@ class ReadingCouncilService
     {
         $council->load([
             'book:id,title,cover,total_pages',
-            'members' => fn($q) => $q->with('user:id,name,avatar')->latest()->limit(5),
+            'members' => fn($q) => $q->with('user:id,name,avatar_url')->latest()->limit(5),
         ]);
 
-        $council->is_member    = $council->isMember($user);
-        $council->members_preview = $council->members->pluck('user');
+        $council->is_member = $council->isMember($user);
 
+        $council->members_preview = $council->members->pluck('user')->values();
+        $council->unsetRelation('members');
         return $council;
     }
 
