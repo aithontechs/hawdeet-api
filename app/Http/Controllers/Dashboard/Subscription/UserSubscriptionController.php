@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Dashboard\Subscription;
 
+use App\Exports\SubscriptionsExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dashboard\Subscription\UserSubscriptionRequest;
 use App\Http\Resources\UserSubscriptionResource;
@@ -9,6 +10,7 @@ use App\Models\SubscriptionPlan;
 use App\Models\UserSubscription;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class UserSubscriptionController extends Controller
 {
@@ -108,6 +110,13 @@ class UserSubscriptionController extends Controller
             'revenue' => UserSubscription::where('payment_status', 'paid')->sum('price'),
         ];
         return $this->successApi($stats , 'Subscription of stats fetched successfully') ;
-
     }
+
+    public function export(Request $request)
+    {
+        $this->authorize('viewAny', UserSubscription::class);
+        $fileName = 'subscriptions_' . now()->format('Y_m_d_His') . '.xlsx';
+        return Excel::download(new SubscriptionsExport($request->status),$fileName);
+    }
+
 }

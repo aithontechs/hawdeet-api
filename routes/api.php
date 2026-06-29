@@ -57,6 +57,7 @@ Route::group(['prefix'=> 'v1/admin'], function () {
         Route::apiResource('subscription-plans' , SubscriptionPlanController::class) ;
 
         // ==== User Subscription===
+        Route::get('subscriptions/export', [UserSubscriptionController::class, 'export']);
         Route::get('user-subscriptions/stats' , [UserSubscriptionController::class , 'stats']) ;
         Route::apiResource('user-subscriptions' , UserSubscriptionController::class)->except(['update' , 'destroy']) ;
         Route::patch('user-subscriptions/{user_subscriptions}/cancelled' , [UserSubscriptionController::class , 'cancel']) ;

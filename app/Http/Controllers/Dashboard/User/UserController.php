@@ -62,6 +62,7 @@ class UserController extends Controller
 
     public function export(Request $request)
     {
+        $this->authorize('viewAny', User::class);
         $fileName = 'users_' . now()->format('Y_m_d_His') . '.xlsx';
         return Excel::download(new UsersExport($request->search), $fileName);
     }
