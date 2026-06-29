@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Dashboard\Order;
 
+use App\Exports\OrdersExport;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class OrderController extends Controller
 {
@@ -82,5 +84,15 @@ class OrderController extends Controller
             'Orders statistics fetched successfully'
         );
     }
+
+    public function export(Request $request)
+    {
+        $this->authorize('viewAny', Order::class);
+
+        $fileName = 'orders_' . now()->format('Y_m_d_His') . '.xlsx';
+
+        return Excel::download(new OrdersExport($request), $fileName);
+    }
+
 
 }

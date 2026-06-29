@@ -35,12 +35,8 @@ class UsersExport implements FromQuery, WithHeadings, WithMapping, WithStyles, W
                 'created_at',
             ])
             ->withCount([
-                'followers',
-                'following',
                 'userBooks',
                 'orders',
-                'payments',
-                'shippingAddresses',
             ])
             ->with([
                 'activeSubscriptions.plan:id,name,duration_months'
