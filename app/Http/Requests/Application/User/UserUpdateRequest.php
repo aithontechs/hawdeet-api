@@ -16,10 +16,18 @@ class UserUpdateRequest extends FormRequest
     {
         return [
             'name' => 'sometimes|string|max:30|min:4',
-            'phone' => ['sometimes', 'regex:/^01[0125][0-9]{8}$/' , 'unique:users,phone' , Rule::unique('users', 'phone')->Ignore(auth()->id())],
-            'birth_date' => 'sometimes|date',
+            'phone' => ['sometimes', 'regex:/^01[0125][0-9]{8}$/' ,  Rule::unique('users', 'phone')->Ignore(auth()->id())],
+            'birth_date' => ['sometimes', 'date' , 'before_or_equal:' . now()->subYears(8)->toDateString(), ],
             'avatar_url' => 'sometimes|image|max:5120',
             'bio' => 'sometimes|string|max:1000'
+        ];
+    }
+
+    public function messages()
+    {
+        return [
+            'phone.regex' => 'رقم الهاتف يجب أن يكون رقم محمول مصري صحيح.',
+            'birth_date.before_or_equal' => 'يجب ألا يقل العمر عن 8 سنوات.',
         ];
     }
 }

@@ -14,7 +14,7 @@ class AdminResource extends JsonResource
             'name' => $this->name ,
             'email' => $this->email ,
             'phone' => $this->phone ,
-            'role' => $this->role->name ,
+            'role' => $this->role?->name ,
             'avatar_url' => $this->avatar_url,
             'is_active' => $this->is_active ,
             'created_at' => $this->created_at->toDateTimeString() ,

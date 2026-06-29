@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Dashboard\Author;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Dashboard\Author\AuthorRequest;
+use App\Models\Book;
 use App\Models\User;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class AuthorController extends Controller
 {
@@ -55,7 +55,7 @@ class AuthorController extends Controller
     public function destroy(User $user)
     {
         $booksCount = $user->authorBooks()->where('published', true)->count();
-        
+
         if ($booksCount > 0) {
             return $this->errorApi(
                 "لا يمكن حذف المؤلف لأنه يمتلك {$booksCount} كتاب منشور.",
@@ -82,20 +82,13 @@ class AuthorController extends Controller
         ->where('is_author', 1)
         ->first();
 
-        $avgBooks = DB::table('books')
-                    ->selectRaw('AVG(book_count) as avg_books')
-                    ->fromSub(
-                        DB::table('books')
-                            ->selectRaw('author_id, COUNT(*) as book_count')
-                            ->groupBy('author_id'),
-                        'authors_books'
-                    )
-                    ->value('avg_books');
+        $avgBooks = Book::whereNotNull('avg_rating')->avg('avg_rating');
+
         return $this->successApi([
             'total_authors' => $stats->total_authors,
             'active_authors' => $stats->active_authors,
             'new_authors' => $stats->new_authors,
-            'average_books_per_author' => round($averageBooksPerAuthor ?? 0, 2),
+            'average_rating' => round($averageBooksPerAuthor ?? 0, 2),
         ], 'Stats of authors fetched successfully');
     }
 }
