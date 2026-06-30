@@ -13,7 +13,7 @@ class Post extends Model
 
     protected $fillable = [
         'title', 'body', 'media_url', 'media_type',
-        'is_published', 'likes_count', 'comments_count',
+        'is_published','is_approved', 'likes_count', 'comments_count',
         'shares_count', 'published_at',
     ];
 

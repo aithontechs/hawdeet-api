@@ -24,7 +24,7 @@ class UpdateCouncilRequest extends FormRequest
         return [
             'title'        => 'sometimes|string|max:255',
             'description'  => 'sometimes|nullable|string',
-            'status'       => 'sometimes|in:upcoming,active,closed',
+            'status'       => 'sometimes|   ',
         ];
     }
 }

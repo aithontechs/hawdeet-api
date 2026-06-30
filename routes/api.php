@@ -11,6 +11,8 @@ use App\Http\Controllers\Dashboard\Coupon\CouponController;
 use App\Http\Controllers\Dashboard\Notification\AdminNotificationController;
 use App\Http\Controllers\Dashboard\Order\OrderController;
 use App\Http\Controllers\Dashboard\Payment\PaymentController;
+use App\Http\Controllers\Dashboard\Post\PostController;
+use App\Http\Controllers\Dashboard\ReadingCouncil\ReadingCouncilController;
 use App\Http\Controllers\Dashboard\Settings\ProfileController;
 use App\Http\Controllers\Dashboard\Shipping\ShippingZoneController;
 use App\Http\Controllers\Dashboard\Subscription\{SubscriptionPlanController , UserSubscriptionController };
@@ -96,6 +98,9 @@ Route::group(['prefix'=> 'v1/admin'], function () {
             Route::post('/{user}/mark-read',[AdminChatController::class, 'markAsRead']);
         });
 
+        Route::apiResource('councils' ,ReadingCouncilController::class) ;
+        Route::patch('posts/{post}/approve' ,[PostController::class , 'approve']);
+        Route::apiResource('posts' ,PostController::class);
 
 
     });

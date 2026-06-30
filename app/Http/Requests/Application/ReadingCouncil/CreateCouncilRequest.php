@@ -25,7 +25,7 @@ class CreateCouncilRequest extends FormRequest
             'book_id'      => 'required|integer|exists:books,id',
             'title'        => 'required|string|max:255',
             'description'  => 'nullable|string',
-            'status'       => 'nullable|in:upcoming,active,closed',
+            'status'       => 'nullable|in:upcoming,active',
         ];
     }
 }

@@ -13,9 +13,8 @@ class ReadingCouncilService
 {
     public function getAll(string $status = 'all', int $perPage = 10)
     {
-        $query = ReadingCouncil::query()
-            ->with('book:id,title,cover')
-            ->withCount('members');
+        $query = ReadingCouncil::query()->select('id' , 'book_id' , 'title' , 'description' , 'status' , 'comments_count')
+                        ->with('book:id,title,cover')->withCount('members');
 
         match ($status) {
             'active'   => $query->active(),
@@ -57,11 +56,16 @@ class ReadingCouncilService
 
     public function create(array $data, Admin|User $actor): ReadingCouncil
     {
+        $book = Book::findOrFail($data['book_id']);
+        abort_unless($book->published , 403, 'Book must publish before create reading council to it');
+
         if ($actor instanceof User) {
             abort_unless($actor->is_author, 403, 'Only authors can create councils.');
-            $book = Book::findOrFail($data['book_id']);
             abort_unless($book->author_id === $actor->id, 403, 'Not your book.');
         }
+
+        $alreadyExist = ReadingCouncil::where('book_id' , $book->id)->exists() ;
+        abort_if($alreadyExist,422,'Reading council for this book already exists.');
 
         $conuncil =  ReadingCouncil::create([
             ...$data,
@@ -94,6 +98,7 @@ class ReadingCouncilService
     public function update(ReadingCouncil $council, array $data, Admin|User $actor): ReadingCouncil
     {
         $this->authorizeActor($council, $actor);
+        abort_unless($council->book->published , 403, 'Book must publish before updated reading council to it');
         $council->update($data);
         return $council->fresh();
     }

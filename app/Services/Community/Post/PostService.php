@@ -21,10 +21,6 @@ class PostService
 
     public function createPost(User|Admin $actor, array $data , ?UploadedFile $media = null): Post
     {
-        // if ($actor instanceof User) {
-        //     abort_unless($actor->is_author, 403, 'Only authors can create posts.');
-        // }
-
 
         $mediaPath = null;
         $mediaType = null;
@@ -38,13 +34,14 @@ class PostService
             $mediaType = $this->resolveMediaType($media);
         }
 
+        $isAdmin = $actor instanceof Admin;
         $post = $actor->morphMany(Post::class, 'postable')->create([
             'body'         => $data['body'] ?? null,
             'media_url'    => $mediaPath,
             'media_type'   => $mediaType,
-            'is_published' => true,
-            'is_approved'  => $actor instanceof Admin,
-            'published_at' => Carbon::now(),
+            'is_published' => $isAdmin ,
+            'is_approved'  => $isAdmin ,
+            'published_at' => $isAdmin ? now() : null,
         ]);
 
         if ($actor instanceof User) {
@@ -88,7 +85,6 @@ class PostService
     {
         $mediaPath = $post->getRawOriginal('media_url');
 
-
         if ($mediaPath) {
             $this->storage->delete($mediaPath, StorageService::DISK_PUBLIC);
         }
@@ -98,7 +94,12 @@ class PostService
 
     public function approvePost(Post $post): Post
     {
-        $post->update(['is_approved' => true]);
+        abort_if($post->is_approved , 403 , 'Post already approved') ;
+        $post->update([
+            'is_approved' => 1 ,
+            'is_published' => 1 ,
+            'published_at' => now()
+            ]);
         return $post->fresh();
     }
 
@@ -137,5 +138,13 @@ class PostService
             ->chunk(100, function ($followers) use ($post, $actor) {
                 Notification::send($followers, new NewPostNotification($post, $actor));
             });
+    }
+
+
+
+    public function getPostsDashboard()
+    {
+        $query = Post::query()->with('postable:id,name')->orderByDesc('published_at')->paginate(15);
+        return $query ;
     }
 }

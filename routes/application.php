@@ -191,21 +191,11 @@ Route::group(['prefix'=> 'v1'] , function () {
             Route::post('/{comment}/like', [LikeController::class, 'likeCouncilComment']);
 
 
-            Route::post('/',  [ReadingCouncilController::class, 'store']);
-            Route::put('/{council}', [ReadingCouncilController::class, 'update']);
-            Route::delete('/{council}', [ReadingCouncilController::class, 'destroy']);
+            // Route::post('/',  [ReadingCouncilController::class, 'store']);
+            // Route::put('/{council}', [ReadingCouncilController::class, 'update']);
+            // Route::delete('/{council}', [ReadingCouncilController::class, 'destroy']);
         });
 
     });
 }) ;
 
-
-
-Route::get('send/mail', function () {
-    Mail::raw('hello test mails', function ($message) {
-        $message->to('mahmoudabdelrahim189@gmail.com')
-                ->subject('Test Email');
-    });
-
-    return "Done!";
-});
