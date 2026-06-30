@@ -22,6 +22,9 @@ class Order extends Model
         'shipping_cost',
         'has_physical',
         'idempotency_key',
+        'shipping_status',
+        'shipped_at',
+        'delivered_at'
     ];
 
     protected $casts = [

@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 class OrderController extends Controller
@@ -39,6 +40,49 @@ class OrderController extends Controller
             $order,
             'Order details fetched successfully'
         );
+    }
+
+    public function updateShippingOrderStatus(Request $request , Order $order)
+    {
+        $this->authorize('viewAny', Order::class) ;
+        $request->validate([
+            'status' => 'required|in:processing,shipped,delivered,cancelled,returned'
+        ]);
+
+        abort_unless($order->has_physical , 400 , 'This order does not require shipping.') ;
+        // abort_unless($order->paid_at , 400 , 'This order must be paid to shipping it') ;
+
+
+        $allowedTransitions = [
+            null => ['processing', 'cancelled'],
+            'processing' => ['shipped', 'cancelled'],
+            'shipped' => ['delivered'],
+            'delivered' => ['returned'],
+            'cancelled' => [],
+            'returned' => [],
+        ];
+
+        $currentStatus = $order->shipping_status;
+        $newStatus = $request->status;
+
+        abort_unless(in_array($newStatus, $allowedTransitions[$currentStatus] ?? []),422,
+            "Cannot change shipping status from {$currentStatus} to {$newStatus}."
+        );
+
+        $data = [
+            'shipping_status' => $newStatus,
+        ];
+
+        if ($newStatus === 'shipped' && $order->shipped_at === null) {
+            $data['shipped_at'] = now();
+        }
+
+        if ($newStatus === 'delivered' && $order->delivered_at === null) {
+            $data['delivered_at'] = now();
+        }
+
+        $order->update($data);
+        return $this->successApi($order->fresh() , 'Shipping status updated successfully.');
     }
 
     public function stats()
@@ -88,9 +132,7 @@ class OrderController extends Controller
     public function export(Request $request)
     {
         $this->authorize('viewAny', Order::class);
-
         $fileName = 'orders_' . now()->format('Y_m_d_His') . '.xlsx';
-
         return Excel::download(new OrdersExport($request), $fileName);
     }
 

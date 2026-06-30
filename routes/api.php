@@ -70,6 +70,7 @@ Route::group(['prefix'=> 'v1/admin'], function () {
         // ===== Order ======
         Route::get('orders/stats' , [OrderController::class , 'stats']) ;
         Route::get('orders/export' , [OrderController::class , 'export']) ;
+        Route::patch('orders/{order}/shippingStatus' , [OrderController::class , 'updateShippingOrderStatus']) ;
         Route::apiResource('orders' , OrderController::class)->only(['index' , 'show']) ;
 
 
