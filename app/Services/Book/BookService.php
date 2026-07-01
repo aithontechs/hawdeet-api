@@ -129,6 +129,15 @@ class BookService
                 $data['compare_price'] = 0;
             }
 
+            if ($type === 'digital') {
+                $data['physical_price']         = 0;
+                $data['physical_compare_price'] = 0;
+                $data['physical_stock']         = 0;
+            } elseif ($type === 'physical') {
+                $data['price']         = 0;
+                $data['compare_price'] = 0;
+            }
+
             $categoryIds = $data['category_ids'] ?? null;
             unset($data['category_ids'], $data['preview_start_page'], $data['preview_end_page']);
 
