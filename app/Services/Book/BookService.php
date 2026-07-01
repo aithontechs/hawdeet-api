@@ -4,6 +4,7 @@ namespace App\Services\Book;
 
 use App\Jobs\Dashboard\ProcessBookFiles;
 use App\Models\Book;
+use App\Models\Order;
 use App\Models\User;
 use App\Notifications\BookPublishedNotification;
 use App\Services\Storage\StorageService;
@@ -287,5 +288,21 @@ class BookService
         }
 
         return $outputPath;
+    }
+
+    public function getStats()
+    {
+        $books = Book::selectRaw("
+            COUNT(*) as total_books,
+            SUM(CASE WHEN published = 1 THEN 1 ELSE 0 END) as published_books,
+            SUM(CASE WHEN published = 0 THEN 1 ELSE 0 END) as unpublished_books
+        ")->first();
+
+        return [
+            'total_books'       => $books->total_books,
+            'published_books'   => $books->published_books,
+            'unpublished_books' => $books->unpublished_books,
+            'total_sales'       => Order::where('payment_status', 'paid')->sum('total'),
+        ];
     }
 }

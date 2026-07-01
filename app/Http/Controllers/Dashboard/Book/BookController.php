@@ -99,6 +99,12 @@ class BookController extends Controller
         return Excel::download(new BooksExport($request), $fileName);
     }
 
+    public function stats()
+    {
+        $this->authorize('viewAny', Book::class ) ;
+        $stats = $this->bookService->getStats();
+        return $this->successApi($stats, 'Books statistics fetched successfully.');
+    }
 
 
 
