@@ -22,8 +22,7 @@ class ReadingCouncilController extends Controller
 
     public function index(Request $request)
     {
-        $status = $request->status ?? 'all';
-        return $this->successApi($this->councilService->getAll($status),'Councils fetched successfully');
+        return $this->successApi($this->councilService->getAll(),'Councils fetched successfully');
     }
 
     public function featured()

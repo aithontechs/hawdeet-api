@@ -11,18 +11,10 @@ use App\Models\User;
 
 class ReadingCouncilService
 {
-    public function getAll(string $status = 'all', int $perPage = 10)
+    public function getAll(int $perPage = 10)
     {
-        $query = ReadingCouncil::query()->select('id' , 'book_id' , 'title' , 'description' , 'status' , 'comments_count')
+        $query = ReadingCouncil::query()->where('status', 'active')->select('id' , 'book_id' , 'title' , 'description' , 'status' , 'comments_count')
                         ->with('book:id,title,cover')->withCount('members');
-
-        match ($status) {
-            'active'   => $query->active(),
-            'upcoming' => $query->upcoming(),
-            'closed'   => $query->closed(),
-            default    => $query,
-        };
-
         return $query->latest()->paginate($perPage);
     }
 
@@ -123,5 +115,20 @@ class ReadingCouncilService
 
         abort_unless($actor instanceof User && $actor->is_author, 403, 'Unauthorized.');
         abort_unless($council->author_id === $actor->id, 403, 'Not your council.');
+    }
+
+    public function getAllDashboard(string $status = 'all', int $perPage = 10)
+    {
+        $query = ReadingCouncil::query()->select('id' , 'book_id' , 'title' , 'description' , 'status' , 'comments_count')
+                        ->with('book:id,title,cover')->withCount('members');
+
+        match ($status) {
+            'active'   => $query->active(),
+            'upcoming' => $query->upcoming(),
+            'closed'   => $query->closed(),
+            default    => $query,
+        };
+
+        return $query->latest()->paginate($perPage);
     }
 }
