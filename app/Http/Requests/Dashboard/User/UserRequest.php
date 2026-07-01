@@ -34,7 +34,7 @@ class UserRequest extends FormRequest
                     ->numbers()
                     ->symbols(),
             ],
-            'birth_date' => $this->isMethod('post') ? 'required|date' : 'sometimes|date',
+            'birth_date' => $this->isMethod('post') ? ['required','date' ,  'before_or_equal:' . now()->subYears(8)->toDateString(), ] : ['sometimes', 'date' ,  'before_or_equal:' . now()->subYears(8)->toDateString(), ],
             'is_author' => 'nullable|boolean',
         ];
     }
