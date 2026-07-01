@@ -77,7 +77,23 @@ class BookService
                 abort_if(!$user->is_author, 403, 'This user is not an author.');
             }
 
+            $data = collect($data)->except([
+                'total_pages',
+                'file_processed',
+                'avg_rating',
+                'reviews_count',
+                'published',
+                'published_at',
+            ])->toArray();
+
             $type = $data['type'] ?? $book->type;
+
+            $isLockedFromFileEdits = $book->published && in_array($book->type, ['digital', 'both']);
+
+            if ($isLockedFromFileEdits) {
+                abort_if($coverFile, 403, 'Cannot change the cover of a published digital book.');
+                abort_if($bookFile, 403, 'Cannot change the file of a published digital book.');
+            }
 
             if ($coverFile) {
                 $data['cover'] = $this->storage->replace(
@@ -137,6 +153,9 @@ class BookService
 
     public function publish(Book $book): Book
     {
+        if(in_array($book->type, ['digital', 'both']) && (!$book->file)) {
+            throw new \Exception('Digital books must have a file to be published , Confirm from file of book is be uploaded and processed successfully') ;
+        }
         $book->update(['published' => true, 'published_at' => now()]);
         User::where('is_active', true)->whereNotNull('email_verified_at')->
             chunk(100, function ($users) use ($book) {
@@ -145,11 +164,11 @@ class BookService
         return $book;
     }
 
-    public function unpublish(Book $book): Book
-    {
-        $book->update(['published' => false]);
-        return $book;
-    }
+    // public function unpublish(Book $book): Book
+    // {
+    //     $book->update(['published' => false]);
+    //     return $book;
+    // }
 
     public function delete(Book $book): void
     {
@@ -290,7 +309,7 @@ class BookService
         return $outputPath;
     }
 
-    public function getStats()
+    public function stats()
     {
         $books = Book::selectRaw("
             COUNT(*) as total_books,
