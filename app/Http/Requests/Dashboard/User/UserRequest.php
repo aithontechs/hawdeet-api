@@ -38,4 +38,17 @@ class UserRequest extends FormRequest
             'is_author' => 'nullable|boolean',
         ];
     }
+
+        public function messages()
+        {
+            return [
+                'phone.regex' => 'رقم الهاتف يجب أن يكون رقم محمول مصري صحيح.',
+                'birth_date.before_or_equal' => 'يجب ألا يقل العمر عن 8 سنوات.',
+                'password.min' => 'كلمة المرور يجب أن تحتوي على 12 أحرف على الأقل.',
+                'password.max' => 'كلمة المرور يجب ألا تزيد عن 50 حرفًا.',
+                'password.mixed' => 'كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير.',
+                'password.numbers' => 'كلمة المرور يجب أن تحتوي على رقم واحد على الأقل.',
+                'password.symbols' => 'كلمة المرور يجب أن تحتوي على رمز خاص واحد على الأقل.',
+            ];
+        }
 }
