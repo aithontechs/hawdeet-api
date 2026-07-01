@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use setasign\Fpdi\Fpdi;
+use App\Services\Qpdf\QpdfBinaryLocator;
 
 class BookService
 {
@@ -26,138 +27,145 @@ class BookService
 
     public function create(array $data, UploadedFile $coverFile, ?UploadedFile $bookFile): Book
     {
-        return DB::transaction(function () use ($data, $coverFile, $bookFile) {
-            $user = User::findOrFail($data['author_id']);
-            abort_if(!$user->is_author, 403, 'This user is not an author.');
+        $user = User::findOrFail($data['author_id']);
+        abort_if(!$user->is_author, 403, 'This user is not an author.');
 
-            $type = $data['type'] ?? 'digital';
+        $type = $data['type'] ?? 'digital';
+        $previewStart = $data['preview_start_page'] ?? 1;
+        $previewEnd   = $data['preview_end_page'] ?? 10;
 
-            $data['cover']          = $this->storage->upload($coverFile, self::COVER_FOLDER, StorageService::DISK_PUBLIC);
-            $data['slug']           = $data['slug'] ?? Str::slug($data['title']);
-            $data['uploaded_by']    = auth()->id();
-            $data['file_processed'] = false;
+        $tmpPath = null;
+        if (in_array($type, ['digital', 'both'])) {
+            abort_unless($bookFile, 422, 'Book file is required for digital books.');
+            $this->assertPdfNotEncrypted($bookFile);
+            $tmpPath = $bookFile->store('pending_books', 'local');
+        }
 
-            $previewStart = $data['preview_start_page'] ?? 1;
-            $previewEnd   = $data['preview_end_page'] ?? 10;
+        $data['cover']           = $this->storage->upload($coverFile, self::COVER_FOLDER, StorageService::DISK_PUBLIC);
+        $data['slug']            = $data['slug'] ?? Str::slug($data['title']);
+        $data['uploaded_by']     = auth()->id();
+        $data['file_processed']  = false;
 
-            $tmpPath = null;
-            if (in_array($type, ['digital', 'both'])) {
-                abort_unless($bookFile, 422, 'Book file is required for digital books.');
+        $categoryIds = $data['category_ids'] ?? [];
+        unset($data['category_ids'], $data['preview_start_page'], $data['preview_end_page']);
 
-                $tmpPath = $bookFile->store('pending_books', 'local');
-            }
+        try {
+            $book = DB::transaction(function () use ($data, $categoryIds) {
+                $book = Book::create($data);
+                if (!empty($categoryIds)) {
+                    $book->categories()->sync($categoryIds);
+                }
+                return $book;
+            });
+        } catch (\Throwable $e) {
+            if ($tmpPath) Storage::disk('local')->delete($tmpPath);
+            throw $e;
+        }
 
-            $categoryIds = $data['category_ids'] ?? [];
-            unset($data['category_ids'], $data['preview_start_page'], $data['preview_end_page']);
+        if ($tmpPath) {
+            ProcessBookFiles::dispatch($book->id, $tmpPath, $previewStart, $previewEnd)->afterCommit();
+        }
 
-            $book = Book::create($data);
-
-            if (!empty($categoryIds)) {
-                $book->categories()->sync($categoryIds);
-            }
-
-            if ($tmpPath) {
-                ProcessBookFiles::dispatch(
-                    $book->id,
-                    $tmpPath,
-                    $previewStart,
-                    $previewEnd,
-                )->afterCommit();
-            }
-
-            return $book->load('categories');
-        });
+        return $book->load('categories');
     }
 
     public function update(Book $book, array $data, ?UploadedFile $coverFile, ?UploadedFile $bookFile)
     {
-        return DB::transaction(function () use ($book, $data, $coverFile, $bookFile) {
-            if (!empty($data['author_id'])) {
-                $user = User::findOrFail($data['author_id']);
-                abort_if(!$user->is_author, 403, 'This user is not an author.');
+        if (!empty($data['author_id'])) {
+            $user = User::findOrFail($data['author_id']);
+            abort_if(!$user->is_author, 403, 'This user is not an author.');
+        }
+
+        $data = collect($data)->except([
+            'total_pages',
+            'file_processed',
+            'avg_rating',
+            'reviews_count',
+            'published',
+            'published_at',
+        ])->toArray();
+
+        $type = $data['type'] ?? $book->type;
+
+        $isLockedFromFileEdits = $book->published && in_array($book->type, ['digital', 'both']);
+
+        if ($isLockedFromFileEdits) {
+            abort_if($coverFile, 403, 'Cannot change the cover of a published digital book.');
+            abort_if($bookFile, 403, 'Cannot change the file of a published digital book.');
+        }
+
+        if ($bookFile && in_array($type, ['digital', 'both'])) {
+            $this->assertPdfNotEncrypted($bookFile);
+        }
+
+        if ($coverFile) {
+            $data['cover'] = $this->storage->replace(
+                $coverFile, $book->cover, self::COVER_FOLDER, StorageService::DISK_PUBLIC
+            );
+        }
+
+        $previewStart = $data['preview_start_page'] ?? 1;
+        $previewEnd   = $data['preview_end_page']   ?? 10;
+        $tmpPath      = null;
+
+        if (in_array($type, ['digital', 'both'])) {
+            if ($bookFile) {
+                $this->storage->deleteMany([$book->file, $book->preview], StorageService::DISK_PRIVATE);
+
+                $tmpPath = $bookFile->store('pending_books', 'local');
+
+                $data['file_processed'] = false;
+                $data['file']        = null;
+                $data['preview']     = null;
+                $data['total_pages'] = 0;
+            } else {
+                unset($data['file'], $data['preview']);
             }
-
-            $data = collect($data)->except([
-                'total_pages',
-                'file_processed',
-                'avg_rating',
-                'reviews_count',
-                'published',
-                'published_at',
-            ])->toArray();
-
-            $type = $data['type'] ?? $book->type;
-
-            $isLockedFromFileEdits = $book->published && in_array($book->type, ['digital', 'both']);
-
-            if ($isLockedFromFileEdits) {
-                abort_if($coverFile, 403, 'Cannot change the cover of a published digital book.');
-                abort_if($bookFile, 403, 'Cannot change the file of a published digital book.');
+        } elseif ($type === 'physical') {
+            if ($book->file || $book->preview) {
+                $this->storage->deleteMany([$book->file, $book->preview], StorageService::DISK_PRIVATE);
+                $data['file']        = null;
+                $data['preview']     = null;
+                $data['total_pages'] = 0;
             }
+            $data['price']         = 0;
+            $data['compare_price'] = 0;
+        }
 
-            if ($coverFile) {
-                $data['cover'] = $this->storage->replace(
-                    $coverFile, $book->cover, self::COVER_FOLDER, StorageService::DISK_PUBLIC
-                );
-            }
+        if ($type === 'digital') {
+            $data['physical_price']         = 0;
+            $data['physical_compare_price'] = 0;
+            $data['physical_stock']         = 0;
+        } elseif ($type === 'physical') {
+            $data['price']         = 0;
+            $data['compare_price'] = 0;
+        }
 
-            $previewStart = $data['preview_start_page'] ?? 1;
-            $previewEnd   = $data['preview_end_page']   ?? 10;
-            $tmpPath      = null;
+        $categoryIds = $data['category_ids'] ?? null;
+        unset($data['category_ids'], $data['preview_start_page'], $data['preview_end_page']);
 
-            if (in_array($type, ['digital', 'both'])) {
-                if ($bookFile) {
-                    $this->storage->deleteMany([$book->file, $book->preview], StorageService::DISK_PRIVATE);
+        try {
+            $book = DB::transaction(function () use ($book, $data, $categoryIds) {
+                $book->update($data);
 
-                    $tmpPath = $bookFile->store('pending_books', 'local');
-
-                    $data['file_processed'] = false;
-                    $data['file']        = null;
-                    $data['preview']     = null;
-                    $data['total_pages'] = 0;
-                } else {
-                    unset($data['file'], $data['preview']);
+                if (!is_null($categoryIds)) {
+                    $book->categories()->sync($categoryIds);
                 }
-            } elseif ($type === 'physical') {
-                if ($book->file || $book->preview) {
-                    $this->storage->deleteMany([$book->file, $book->preview], StorageService::DISK_PRIVATE);
-                    $data['file']        = null;
-                    $data['preview']     = null;
-                    $data['total_pages'] = 0;
-                }
-                $data['price']         = 0;
-                $data['compare_price'] = 0;
-            }
 
-            if ($type === 'digital') {
-                $data['physical_price']         = 0;
-                $data['physical_compare_price'] = 0;
-                $data['physical_stock']         = 0;
-            } elseif ($type === 'physical') {
-                $data['price']         = 0;
-                $data['compare_price'] = 0;
-            }
-
-            $categoryIds = $data['category_ids'] ?? null;
-            unset($data['category_ids'], $data['preview_start_page'], $data['preview_end_page']);
-
-            $book->update($data);
-
-            if (!is_null($categoryIds)) {
-                $book->categories()->sync($categoryIds);
-            }
-
+                return $book;
+            });
+        } catch (\Throwable $e) {
             if ($tmpPath) {
-                ProcessBookFiles::dispatch(
-                    $book->id,
-                    $tmpPath,
-                    $previewStart,
-                    $previewEnd,
-                )->afterCommit();
+                Storage::disk('local')->delete($tmpPath);
             }
+            throw $e;
+        }
 
-            return $book->load('categories');
-        });
+        if ($tmpPath) {
+            ProcessBookFiles::dispatch($book->id, $tmpPath, $previewStart, $previewEnd)->afterCommit();
+        }
+
+        return $book->load('categories');
     }
 
     public function publish(Book $book): Book
@@ -332,5 +340,27 @@ class BookService
             'unpublished_books' => $books->unpublished_books,
             'total_sales'       => Order::where('payment_status', 'paid')->sum('total'),
         ];
+    }
+
+    private function assertPdfNotEncrypted(UploadedFile $bookFile): void
+    {
+        $path = $bookFile->getRealPath();
+        $qpdfBin = QpdfBinaryLocator::resolve();
+
+        if ($qpdfBin && $path) {
+            $encrypted = QpdfBinaryLocator::isEncrypted($qpdfBin, $path);
+            if ($encrypted === true) {
+                abort(422, 'This PDF file is password-protected (encrypted). Please upload an unencrypted version.');
+            }
+            return;
+        }
+
+        try {
+            (new Fpdi())->setSourceFile($path);
+        } catch (\Throwable $e) {
+            if (str_contains(strtolower($e->getMessage()), 'encrypt')) {
+                abort(422, 'This PDF file is password-protected (encrypted). Please upload an unencrypted version.');
+            }
+        }
     }
 }
