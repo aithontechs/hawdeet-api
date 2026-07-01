@@ -99,4 +99,10 @@ class CommentService
         if ($parentOwner->id === ($actor instanceof User ? $actor->id : null)) return;
         $parentOwner->notify(new NewReplyNotification($comment, $actor));
     }
+
+    public function getCommentsDashboard()
+    {
+        $comments = Comment::select('id' , 'post_id', 'body' , 'likes_count','commentable_id','commentable_type' )->with(['commentable:id,name,email,avatar_url' , 'post:id,body'])->paginate(10) ;
+        return $comments ;
+    }
 }

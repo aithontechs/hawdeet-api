@@ -13,6 +13,7 @@ class CommentPolicy
 
     public function delete(User|Admin $actor, Comment $comment): bool
     {
+        if($actor instanceof Admin) return true ;
         return $comment->isOwnedBy($actor);
     }
 }

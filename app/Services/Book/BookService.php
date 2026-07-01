@@ -90,14 +90,11 @@ class BookService
 
             if (in_array($type, ['digital', 'both'])) {
                 if ($bookFile) {
-                    // احذف الملفات القديمة
                     $this->storage->deleteMany([$book->file, $book->preview], StorageService::DISK_PRIVATE);
 
-                    // store مؤقت زي الـ create
                     $tmpPath = $bookFile->store('pending_books', 'local');
 
                     $data['file_processed'] = false;
-                    // امسح القيم القديمة عشان ما يظلوش
                     $data['file']        = null;
                     $data['preview']     = null;
                     $data['total_pages'] = 0;
@@ -124,7 +121,6 @@ class BookService
                 $book->categories()->sync($categoryIds);
             }
 
-            // dispatch الـ job بعد commit زي الـ create
             if ($tmpPath) {
                 ProcessBookFiles::dispatch(
                     $book->id,

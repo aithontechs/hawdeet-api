@@ -7,7 +7,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 use Maatwebsite\Excel\Facades\Excel;
 
 class OrderController extends Controller
@@ -78,6 +77,7 @@ class OrderController extends Controller
         }
 
         if ($newStatus === 'delivered' && $order->delivered_at === null) {
+        // abort_unless($order->paid_at , 400 , 'This order must be paid to deliveryed it') ;
             $data['delivered_at'] = now();
         }
 

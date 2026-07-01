@@ -7,6 +7,7 @@ use App\Http\Controllers\Dashboard\Authorization\{PermissionController , RoleCon
 use App\Http\Controllers\Dashboard\Book\BookController;
 use App\Http\Controllers\Dashboard\Category\CategoryController;
 use App\Http\Controllers\Dashboard\Chat\AdminChatController;
+use App\Http\Controllers\Dashboard\Comment\CommentController;
 use App\Http\Controllers\Dashboard\Coupon\CouponController;
 use App\Http\Controllers\Dashboard\Notification\AdminNotificationController;
 use App\Http\Controllers\Dashboard\Order\OrderController;
@@ -59,7 +60,7 @@ Route::group(['prefix'=> 'v1/admin'], function () {
         // === Plans
         Route::apiResource('subscription-plans' , SubscriptionPlanController::class) ;
 
-        // ==== User Subscription===
+        // ==== User Subscription ===
         Route::get('subscriptions/export', [UserSubscriptionController::class, 'export']);
         Route::get('user-subscriptions/stats' , [UserSubscriptionController::class , 'stats']) ;
         Route::apiResource('user-subscriptions' , UserSubscriptionController::class)->except(['update' , 'destroy']) ;
@@ -100,9 +101,11 @@ Route::group(['prefix'=> 'v1/admin'], function () {
         });
 
         Route::apiResource('councils' ,ReadingCouncilController::class) ;
+
         Route::patch('posts/{post}/approve' ,[PostController::class , 'approve']);
         Route::apiResource('posts' ,PostController::class);
 
+        Route::apiResource('comments' ,CommentController::class)->only(['index' , 'destroy']);
 
     });
 });
