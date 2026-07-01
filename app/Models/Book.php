@@ -76,7 +76,7 @@ class Book extends Model
             })
             ->when($filters->filled('category'), function ($q) use ($filters) {
                 $q->whereHas('categories', function ($q) use ($filters) {
-                    $q->where('categories.id', $filters->integer('category'));
+                    $q->where('categories.name', $filters->integer('category'));
                 });
             });
     }
