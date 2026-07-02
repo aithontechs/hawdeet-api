@@ -84,7 +84,6 @@ class BookService
         }
 
         $data = collect($data)->except([
-            'total_pages',
             'file_processed',
             'avg_rating',
             'reviews_count',
@@ -142,7 +141,6 @@ class BookService
                 $this->storage->deleteMany([$book->file, $book->preview], StorageService::DISK_PRIVATE);
                 $data['file']        = null;
                 $data['preview']     = null;
-                $data['total_pages'] = 0;
             }
             $data['price']         = 0;
             $data['compare_price'] = 0;

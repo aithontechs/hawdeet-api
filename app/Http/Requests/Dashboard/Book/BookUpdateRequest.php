@@ -48,6 +48,8 @@ class BookUpdateRequest extends FormRequest
             'physical_price'         => [$isPhysical ? 'sometimes' : 'nullable', 'numeric', 'min:0'],
             'physical_compare_price' => ['nullable', 'numeric', 'min:0', 'gt:physical_price'],
             'physical_stock'         => [$isPhysical ? 'sometimes' : 'nullable', 'integer', 'min:1'],
+            'total_pages'   => [$isPhysical ? 'sometimes' : 'nullable', 'integer', 'min:1'],
+
         ];
     }
 
