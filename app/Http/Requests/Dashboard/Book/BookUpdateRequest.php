@@ -39,8 +39,8 @@ class BookUpdateRequest extends FormRequest
                 $this->shouldRequireFile($book, $type) ? 'required' : 'sometimes',
                 'file', 'mimes:pdf', 'max:20480' ,  'mimetypes:application/pdf'
             ],
-            'preview_start_page' => ['required_with:file', 'integer', 'min:1'],
-            'preview_end_page'   => ['required_with:file', 'integer', 'min:1', 'gte:preview_start_page'],
+            'preview_start_page' => ['required_with:file,preview_end_page', 'integer', 'min:1'],
+            'preview_end_page'   => ['required_with:file,preview_start_page', 'integer', 'min:1', 'gte:preview_start_page'],
 
             'price'         => [$isDigital ? 'sometimes' : 'nullable', 'numeric', 'min:0'],
             'compare_price' => ['nullable', 'numeric', 'min:0', 'gt:price'],
@@ -57,9 +57,26 @@ class BookUpdateRequest extends FormRequest
         $validator->after(function (Validator $validator) {
             $book       = $this->route('book');
             $type       = $this->input('type', $book instanceof \App\Models\Book ? $book->type : 'digital');
+
+            $hasPreviewRangeInput = $this->filled('preview_start_page') || $this->filled('preview_end_page');
+
             $isDigital  = in_array($type, ['digital', 'both']);
             $isPhysical = in_array($type, ['physical', 'both']);
+
             $isChangingType = $this->has('type') && $book instanceof \App\Models\Book && $book->type !== $type;
+            $isCreatingOrNewPhysical = !($book instanceof \App\Models\Book);
+
+                if ($type === 'physical' && $hasPreviewRangeInput) {
+                $validator->errors()->add('preview_start_page', 'Cannot set preview pages for physical-only books.');
+            }
+
+            if ($hasPreviewRangeInput && !$this->hasFile('file')&& $book instanceof \App\Models\Book && !$book->file) {
+                $validator->errors()->add('preview_start_page', 'Cannot set preview pages without an uploaded book file.');
+            }
+
+            if ($hasPreviewRangeInput && !$this->hasFile('file')&& $book instanceof \App\Models\Book && $book->published && in_array($book->type, ['digital', 'both'])) {
+                $validator->errors()->add('preview_start_page', 'Cannot change preview of a published digital book.');
+            }
 
             if ($isChangingType && $isDigital && !$book->file && !$this->hasFile('file')) {
                 $validator->errors()->add('file', 'Book file is required when changing type to digital or both.');
@@ -73,7 +90,11 @@ class BookUpdateRequest extends FormRequest
                 $validator->errors()->add('physical_price', 'Physical price is required when type is physical or both.');
             }
 
-            if ($isPhysical && $isChangingType && !$this->filled('physical_stock') && !$book->physical_stock) {
+            if ($isPhysical
+                && ($isChangingType || $isCreatingOrNewPhysical)
+                && !$this->filled('physical_stock')
+                && !($book instanceof \App\Models\Book && $book->physical_stock)
+            ) {
                 $validator->errors()->add('physical_stock', 'Physical stock is required when type is physical or both.');
             }
 

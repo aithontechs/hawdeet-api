@@ -43,8 +43,9 @@ class BookController extends Controller
     }
 
 
-    public function update(BookUpdateRequest $request, Book $book)
+    public function update(BookUpdateRequest $request)
     {
+        $book = Book::findorfail($request->book_id);
         $book = $this->bookService->update($book,$request->validated(),$request->file('cover'),$request->file('file'));
         $message = $request->hasFile('file')? 'Book updated. File is being processed.': 'Book updated successfully.';
         return $this->successApi($book, $message);

@@ -76,6 +76,8 @@ class BookService
 
     public function update(Book $book, array $data, ?UploadedFile $coverFile, ?UploadedFile $bookFile)
     {
+        $oldPreviewToDelete = null;
+
         if (!empty($data['author_id'])) {
             $user = User::findOrFail($data['author_id']);
             abort_if(!$user->is_author, 403, 'This user is not an author.');
@@ -123,6 +125,15 @@ class BookService
                 $data['file']        = null;
                 $data['preview']     = null;
                 $data['total_pages'] = 0;
+            }
+            elseif (($data['preview_start_page'] ?? null) && ($data['preview_end_page'] ?? null) && $book->file) {
+                    $existingContents = $this->storage->get($book->file, StorageService::DISK_PRIVATE);
+                    $tmpPath = 'pending_books/' . \Illuminate\Support\Str::uuid() . '.pdf';
+                    Storage::disk('local')->put($tmpPath, $existingContents);
+                    $oldPreviewToDelete = $book->preview;
+                    $data['file_processed'] = false;
+                    unset($data['file'], $data['preview']);
+
             } else {
                 unset($data['file'], $data['preview']);
             }
@@ -164,6 +175,10 @@ class BookService
                 Storage::disk('local')->delete($tmpPath);
             }
             throw $e;
+        }
+
+        if ($oldPreviewToDelete) {
+            $this->storage->deleteMany([$oldPreviewToDelete], StorageService::DISK_PRIVATE);
         }
 
         if ($tmpPath) {
