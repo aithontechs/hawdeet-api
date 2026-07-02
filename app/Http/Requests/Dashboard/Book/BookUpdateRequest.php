@@ -20,7 +20,7 @@ class BookUpdateRequest extends FormRequest
         $type   = $this->input('type', $book instanceof \App\Models\Book ? $book->type : 'digital');
 
         $isDigital  = in_array($type, ['digital', 'both']);
-        $isPhysical = in_array($type, ['physical', 'both']);
+        $isPhysical = in_array($type, ['physical']);
 
         return [
             'title'       => ['sometimes', 'string', 'max:255'],
