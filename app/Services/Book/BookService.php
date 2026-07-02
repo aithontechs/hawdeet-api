@@ -326,7 +326,7 @@ class BookService
         return $outputPath;
     }
 
-    public function stats()
+    public function getStats()
     {
         $books = Book::selectRaw("
             COUNT(*) as total_books,
