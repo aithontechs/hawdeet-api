@@ -27,7 +27,6 @@ class BookStoreRequest extends FormRequest
             'author_id'   => ['required', 'exists:users,id'],
             'age_min'     => ['required', 'integer', 'min:0'],
             'is_free'     => ['boolean'],
-            'published'   => ['boolean'],
             'is_subscription_included' => ['nullable', 'boolean'],
             'category_ids'   => ['nullable', 'array'],
             'category_ids.*' => ['integer', 'exists:categories,id'],
@@ -36,11 +35,12 @@ class BookStoreRequest extends FormRequest
             'price'  => [$isDigital ? 'required' : 'nullable', 'numeric', 'min:0'],
             'compare_price'  => ['nullable', 'numeric', 'gt:price'],
             'preview_start_page'=> [$isDigital ? 'required' : 'nullable', 'integer', 'min:1'],
-            'preview_end_page'  => [$isDigital ? 'required' : 'nullable', 'integer', 'min:1', 'gte:preview_start_page'],
+            'preview_end_page'  => [$isDigital ? 'required' : 'nullable', 'integer', 'min:2', 'gte:preview_start_page'],
 
             'physical_price'  => [$isPhysical ? 'required' : 'nullable', 'numeric', 'min:0'],
             'physical_compare_price'  => ['nullable', 'numeric', 'gt:physical_price'],
             'physical_stock'=> [$isPhysical ? 'required' : 'nullable', 'integer', 'min:1'],
+            'total_pages'   => [$isPhysical ? 'required' : 'nullable', 'integer', 'min:1'],
         ];
     }
 

@@ -41,6 +41,10 @@ class SubscriptionPlanController extends Controller
 
     public function destroy(SubscriptionPlan $subscriptionPlan)
     {
+        if($subscriptionPlan->userSubscriptions()->exists()) {
+            return $this->errorApi('Cannot delete subscription plan with active user subscriptions', 400);
+
+        }
         $subscriptionPlan->delete();
         return $this->successApi(null, 'Subscription Plan deleted successfully');
     }

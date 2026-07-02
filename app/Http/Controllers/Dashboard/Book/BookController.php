@@ -61,16 +61,16 @@ class BookController extends Controller
         return $this->successApi($book, 'Book published successfully.');
     }
 
-    public function unpublish(Book $book)
-    {
-        $this->authorize('unpublish', $book) ;
+    // public function unpublish(Book $book)
+    // {
+    //     $this->authorize('unpublish', $book) ;
 
-        if (! $book->published) {
-            return $this->errorApi('Book is already unpublished.', 422);
-        }
-        $book = $this->bookService->unpublish($book);
-        return $this->successApi($book, 'Book unpublished successfully.');
-    }
+    //     if (! $book->published) {
+    //         return $this->errorApi('Book is already unpublished.', 422);
+    //     }
+    //     $book = $this->bookService->unpublish($book);
+    //     return $this->successApi($book, 'Book unpublished successfully.');
+    // }
 
     public function destroy(Book $book)
     {

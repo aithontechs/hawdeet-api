@@ -10,7 +10,6 @@ use App\Notifications\BookPublishedNotification;
 use App\Services\Storage\StorageService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -39,6 +38,12 @@ class BookService
             abort_unless($bookFile, 422, 'Book file is required for digital books.');
             $this->assertPdfNotEncrypted($bookFile);
             $tmpPath = $bookFile->store('pending_books', 'local');
+            $data['total_pages'] = 0;
+            if($type === 'digital') {
+                $data['physical_price']  = null ;
+                $data['physical_compare_price'] = null ;
+                $data['physical_stock']  = 0;
+            }
         }
 
         $data['cover']           = $this->storage->upload($coverFile, self::COVER_FOLDER, StorageService::DISK_PUBLIC);
@@ -181,11 +186,6 @@ class BookService
         return $book;
     }
 
-    // public function unpublish(Book $book): Book
-    // {
-    //     $book->update(['published' => false]);
-    //     return $book;
-    // }
 
     public function delete(Book $book): void
     {
