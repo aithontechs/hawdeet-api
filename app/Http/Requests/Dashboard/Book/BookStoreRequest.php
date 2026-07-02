@@ -17,7 +17,7 @@ class BookStoreRequest extends FormRequest
     {
         $type = $this->input('type', 'digital');
         $isDigital = in_array($type, ['digital', 'both']);
-        $isPhysical = in_array($type, ['physical', 'both']);
+        $isPhysical = in_array($type, ['physical']);
 
         return [
             'title'       => ['required', 'string', 'max:255'],
