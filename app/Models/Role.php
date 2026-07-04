@@ -35,7 +35,7 @@ class Role extends Model
 
             if(isset($data['permissions'])){
                 $permissions = array_unique($data['permissions']);
-                $this->permissions()->syncWithoutDetaching($permissions);
+                $this->permissions()->sync($permissions);
             }
 
             return $this->load('permissions');
