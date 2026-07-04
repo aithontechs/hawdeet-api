@@ -46,6 +46,10 @@ class RoleController extends Controller
 
     public function destroy(Role $role)
     {
+        if($role->admins()->exists()) {
+            return $this->errorApi('Role cannot be deleted because it is assigned to one or more admins' , 400) ;
+
+        }
         $role->delete() ;
         return $this->successApi($role ,'Role deleted successfully') ;
     }

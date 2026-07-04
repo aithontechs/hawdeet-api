@@ -96,10 +96,8 @@ class Order extends Model
     public static function generateOrderNumber()
     {
         $year  = now()->format('Y');
-        $count = static::where('created_at', '>=', "{$year}-01-01 00:00:00")
-                ->where('created_at', '<=', "{$year}-12-31 23:59:59")
-                ->lockForUpdate()
-                ->count();
-        return "ORD-{$year}-" . str_pad($count + 1, 5, '0', STR_PAD_LEFT);    }
+        $count = static::whereYear('created_at', $year)->count() + 1;
+        return "ORD-{$year}-" . str_pad($count, 5, '0', STR_PAD_LEFT);
+    }
 
 }

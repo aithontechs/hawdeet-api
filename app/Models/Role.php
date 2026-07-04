@@ -12,6 +12,11 @@ class Role extends Model
 
     protected $fillable = ['name'] ;
 
+    public function admins()
+    {
+        return $this->hasMany(Admin::class);
+    }
+
     public static function createWithPermission($data)
     {
         return DB::transaction(function () use ($data) {
