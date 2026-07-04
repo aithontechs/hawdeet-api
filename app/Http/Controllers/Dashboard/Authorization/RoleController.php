@@ -18,7 +18,7 @@ class RoleController extends Controller
 
     public function index()
     {
-        $roles = Role::select('name')->get(); // from 3 : 5
+        $roles = Role::select('id','name')->get(); // from 3 : 5
         return $this->successApi($roles , 'Roles fetched successfully') ;
     }
 
