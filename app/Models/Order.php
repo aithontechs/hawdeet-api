@@ -96,8 +96,17 @@ class Order extends Model
     public static function generateOrderNumber()
     {
         $year  = now()->format('Y');
-        $count = static::whereYear('created_at', $year)->count() + 1;
-        return "ORD-{$year}-" . str_pad($count, 5, '0', STR_PAD_LEFT);
+
+        $lastOrder = static::whereYear('created_at', $year)->lockForUpdate()->latest('id')->first() ;
+
+        $nextOrderNumber = 1 ;
+        
+        if ($lastOrder) {
+            preg_match('/(\d+)$/', $lastOrder->order_number, $matches);
+            $nextOrderNumber = ((int) $matches[1]) + 1;
+        }
+
+        return sprintf('ORD-%d-%05d',$year,$nextOrderNumber);
     }
 
 }
