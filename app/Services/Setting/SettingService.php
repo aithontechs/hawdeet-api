@@ -26,6 +26,11 @@ class SettingService
         });
     }
 
+    public function get(string $key, $default = null)
+    {
+        return $this->all()->get($key, $default);
+    }
+
     public function bulkUpdate(array $settings): void
     {
         foreach ($settings as $key => $value) {

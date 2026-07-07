@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\Setting\SettingService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvider;
 use Illuminate\Http\Request;
@@ -53,9 +54,12 @@ class RouteServiceProvider extends ServiceProvider
         RateLimiter::for('login', function (Request $request) {
             $key = strtolower(trim($request->login)) . '|' . $request->ip();
 
+                $settingService = app(SettingService::class);
+                $maxAttempts = (int) $settingService->get('max_failed_login_attempts', 5);
+                $banMinutes  = (int) $settingService->get('temporary_ban_duration_minutes', 15);
                 return [
 
-                    Limit::perHour(10)->by('long:' . $key)->response(function (Request $request, array $headers) {
+                    Limit::perMinutes($banMinutes, $maxAttempts)->by('long:' . $key)->response(function (Request $request, array $headers) {
                         $seconds = $headers['Retry-After'] ?? 0;
 
                         $time = $seconds >= 60 ? ceil($seconds / 60) . ' دقيقة' : $seconds . ' ثانية';
@@ -91,10 +95,13 @@ class RouteServiceProvider extends ServiceProvider
 
         RateLimiter::for('login-admin', function (Request $request) {
             $key = strtolower(trim($request->email)) . '|' . $request->ip();
+            $settingService = app(SettingService::class);
+            $maxAttempts = (int) $settingService->get('max_failed_login_attempts', 5);
+            $banMinutes  = (int) $settingService->get('temporary_ban_duration_minutes', 15);
 
                 return [
 
-                    Limit::perHour(10)->by('long:' . $key)->response(function (Request $request, array $headers) {
+                    Limit::perMinutes($banMinutes, $maxAttempts)->by('long:' . $key)->response(function (Request $request, array $headers) {
                         $seconds = $headers['Retry-After'] ?? 0;
 
                         $time = $seconds >= 60 ? ceil($seconds / 60) . ' دقيقة' : $seconds . ' ثانية';
