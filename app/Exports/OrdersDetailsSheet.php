@@ -142,13 +142,10 @@ class OrdersDetailsSheet implements FromQuery, WithTitle, WithHeadings, WithMapp
                 $lastRow  = $sheet->getHighestRow();
                 $lastCol  = $sheet->getHighestColumn();
 
-                // RTL
                 $sheet->setRightToLeft(true);
 
-                // Header row height
                 $sheet->getRowDimension(1)->setRowHeight(30);
 
-                // Zebra striping on data rows
                 for ($row = 2; $row <= $lastRow; $row++) {
                     $color = $row % 2 === 0 ? 'FFF5F3FF' : 'FFFFFFFF';
                     $sheet->getStyle("A{$row}:{$lastCol}{$row}")->applyFromArray([
@@ -163,7 +160,6 @@ class OrdersDetailsSheet implements FromQuery, WithTitle, WithHeadings, WithMapp
                     ]);
                 }
 
-                // Border on full table
                 $sheet->getStyle("A1:{$lastCol}{$lastRow}")->applyFromArray([
                     'borders' => [
                         'allBorders' => [
@@ -173,7 +169,6 @@ class OrdersDetailsSheet implements FromQuery, WithTitle, WithHeadings, WithMapp
                     ],
                 ]);
 
-                // Color payment status column (L = col 12)
                 for ($row = 2; $row <= $lastRow; $row++) {
                     $status = $sheet->getCell("L{$row}")->getValue();
                     $color  = match ($status) {
@@ -188,7 +183,6 @@ class OrdersDetailsSheet implements FromQuery, WithTitle, WithHeadings, WithMapp
                     ]);
                 }
 
-                // Freeze header row
                 $sheet->freezePane('A2');
             },
         ];

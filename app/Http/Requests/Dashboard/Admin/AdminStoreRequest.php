@@ -24,8 +24,8 @@ class AdminStoreRequest extends FormRequest
         return [
             'name' => ['required','string','max:255'],
             'email' => ['required','email','unique:admins,email'],
-            'phone' => ['required','digits:11' , 'unique:admins,phone'],
-            'password' => ['required','string','min:6'],
+            'phone' => ['required','regex:/^01[0125][0-9]{8}$/', 'unique:admins,phone'],
+            'password' => ['required','string','min:9' , 'confirmed'],
             'role_id' => ['required','exists:roles,id'],
             'avatar_url' => ['nullable','image','max:2048'],
         ];

@@ -54,7 +54,7 @@ class UserSubscription extends Model
         return $this->belongsTo(SubscriptionPlan::class, 'plan_id');
     }
 
-    public function coupon()                
+    public function coupon()
     {
         return $this->belongsTo(Coupon::class);
     }

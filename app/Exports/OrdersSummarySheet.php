@@ -21,7 +21,7 @@ class OrdersSummarySheet implements FromArray, WithTitle, WithStyles, WithColumn
 
     public function __construct($request = null)
     {
-        $this->stats = Order::selectRaw("
+        $this->stats = Order::filter($request)->selectRaw("
             COUNT(*) as total_orders,
             SUM(CASE WHEN payment_status = 'paid'    THEN 1 ELSE 0 END) as paid_orders,
             SUM(CASE WHEN payment_status = 'pending' THEN 1 ELSE 0 END) as pending_orders,
@@ -38,15 +38,10 @@ class OrdersSummarySheet implements FromArray, WithTitle, WithStyles, WithColumn
         $s = $this->stats;
 
         return [
-            // Title
             ['ملخص الطلبات', '', '', ''],
             ['تاريخ التصدير: ' . now()->format('Y-m-d H:i'), '', '', ''],
             ['', '', '', ''],
-
-            // Headers
             ['المؤشر', 'القيمة', '', ''],
-
-            // KPIs
             ['إجمالي الطلبات',       number_format($s->total_orders)],
             ['الطلبات المدفوعة',     number_format($s->paid_orders)],
             ['الطلبات المعلقة',      number_format($s->pending_orders)],
@@ -75,7 +70,6 @@ class OrdersSummarySheet implements FromArray, WithTitle, WithStyles, WithColumn
     public function styles(Worksheet $sheet): array
     {
         return [
-            // Title
             1 => [
                 'font' => ['bold' => true, 'size' => 16, 'color' => ['argb' => 'FF6366F1']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
@@ -84,7 +78,6 @@ class OrdersSummarySheet implements FromArray, WithTitle, WithStyles, WithColumn
                 'font' => ['size' => 10, 'color' => ['argb' => 'FF888888']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_RIGHT],
             ],
-            // Column headers
             4 => [
                 'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF6366F1']],
@@ -99,10 +92,8 @@ class OrdersSummarySheet implements FromArray, WithTitle, WithStyles, WithColumn
             AfterSheet::class => function (AfterSheet $event) {
                 $sheet = $event->sheet->getDelegate();
 
-                // RTL direction
                 $sheet->setRightToLeft(true);
 
-                // Style data rows (5 to 10 = count rows, 12-13 = money rows)
                 foreach (range(5, 10) as $row) {
                     $sheet->getStyle("A{$row}:B{$row}")->applyFromArray([
                         'fill' => [
@@ -113,7 +104,6 @@ class OrdersSummarySheet implements FromArray, WithTitle, WithStyles, WithColumn
                     ]);
                 }
 
-                // Money rows - highlight
                 foreach ([12, 13] as $row) {
                     $sheet->getStyle("A{$row}:B{$row}")->applyFromArray([
                         'font' => ['bold' => true],
@@ -122,7 +112,6 @@ class OrdersSummarySheet implements FromArray, WithTitle, WithStyles, WithColumn
                     ]);
                 }
 
-                // Border around KPI table
                 $sheet->getStyle('A4:B13')->applyFromArray([
                     'borders' => [
                         'allBorders' => [
