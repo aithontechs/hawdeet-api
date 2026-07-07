@@ -38,9 +38,12 @@ class LoginController extends Controller
             return $this->errorApi('Please verify your email first' , 403) ;
         }
 
-        $guestToken = $request->header('X-Guest-Token') ?? $request->input('guest_token');
-        if ($guestToken) {
-            $this->cartService->mergeGuestCart($guestToken, $user);
+        // $guestToken = $request->header('X-Guest-Token') ?? $request->input('guest_token');
+        // if ($guestToken) {
+        //     $this->cartService->mergeGuestCart($guestToken, $user);
+        // }
+        if(! $user->is_active){
+            return $this->errorApi('Your account is inactive. Please contact support.' , 403) ;
         }
 
         $data =  $this->respondWithToken($token);

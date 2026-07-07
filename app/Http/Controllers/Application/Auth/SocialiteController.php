@@ -13,7 +13,7 @@ class SocialiteController extends Controller
 
     public function login($provider)
     {
-        $allowedProviders = ['google', 'github' , 'facebook'];
+        $allowedProviders = ['google', 'facebook'];
         abort_unless(in_array($provider, $allowedProviders), 404);
         $url = Socialite::driver($provider)->stateless()->redirect()->getTargetUrl();
         return $this->successApi(['url' => $url], 'Redirect to social provider');
@@ -40,6 +40,10 @@ class SocialiteController extends Controller
                 'email_verified_at' => now(),
                 'avatar_url' => $socialiteUser->getAvatar()
             ]) ;
+        }
+
+        if(! $user->is_active){
+            return $this->errorApi('Your account is inactive. Please contact support.' , 403) ;
         }
 
         $user->update([

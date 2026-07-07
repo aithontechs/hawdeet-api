@@ -54,9 +54,9 @@ class AuthorController extends Controller
         return $this->successApi($author ,'Author updated successfully') ;
     }
 
-    public function destroy(User $user)
+    public function destroy(User $author)
     {
-        $booksCount = $user->authorBooks()->where('published', true)->count();
+        $booksCount = $author->authorBooks()->where('published', true)->count();
 
         if ($booksCount > 0) {
             return $this->errorApi(
@@ -64,7 +64,7 @@ class AuthorController extends Controller
                 422
             );
         }
-        $user->delete();
+        $author->delete();
         return $this->successApi(null ,'Author deleted successfully') ;
     }
 
