@@ -18,7 +18,7 @@ class AuthorController extends Controller
 
     public function index(Request $request)
     {
-        $authors = User::query()->where('is_author', 1)->select('id', 'name', 'avatar_url', 'is_active')
+        $authors = User::query()->where('is_author', 1)->select('id', 'name', 'email', 'avatar_url', 'is_active')
             ->withCount([
                 'authorBooks as published_books_count' => function ($q) {
                     $q->where('published', true);
