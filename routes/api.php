@@ -15,6 +15,7 @@ use App\Http\Controllers\Dashboard\Payment\PaymentController;
 use App\Http\Controllers\Dashboard\Post\PostController;
 use App\Http\Controllers\Dashboard\ReadingCouncil\ReadingCouncilController;
 use App\Http\Controllers\Dashboard\Settings\ProfileController;
+use App\Http\Controllers\Dashboard\Settings\SettingController;
 use App\Http\Controllers\Dashboard\Shipping\ShippingZoneController;
 use App\Http\Controllers\Dashboard\Subscription\{SubscriptionPlanController , UserSubscriptionController };
 use App\Http\Controllers\Dashboard\User\UserController;
@@ -107,6 +108,11 @@ Route::group(['prefix'=> 'v1/admin'], function () {
         Route::apiResource('posts' ,PostController::class);
 
         Route::apiResource('comments' ,CommentController::class)->only(['index' , 'destroy']);
+
+        Route::prefix('settings')->group(function () {
+            Route::get('/', [SettingController::class, 'index']);
+            Route::put('/', [SettingController::class, 'update']);
+        });
 
     });
 });
