@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Application\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Admin;
 use App\Models\User;
+use App\Notifications\NewUserRegistered;
 use App\Traits\ResponseApi;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Socialite\Socialite;
 
 class SocialiteController extends Controller
@@ -54,6 +57,7 @@ class SocialiteController extends Controller
 
         /** @var User $user */
         $token = auth('user-api')->login($user);
+        Notification::send(Admin::where('is_active' , 1)->get(), new NewUserRegistered($user));
 
         return $this->successApi(
         [
