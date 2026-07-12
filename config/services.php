@@ -47,4 +47,8 @@ return [
     'qpdf' => [
         'binary' => env('QPDF_BINARY', '/usr/local/bin/qpdf'),
     ],
+
+    'frontend' => [
+        'url' => env('FRONTEND_URL', 'https://hawadeet.aithon.site'),
+    ],
 ];

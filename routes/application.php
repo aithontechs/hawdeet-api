@@ -46,7 +46,8 @@ Route::group(['prefix'=> 'v1'] , function () {
     Route::post('/reset-password', [ResetPasswordController::class, 'resetWithinOtp']);
 
     Route::get('/socialite/{provider}' , [SocialiteController::class ,'login'] ) ;
-    Route::get('redirect/{provider}' , [SocialiteController::class ,'redirect']) ;
+    Route::get('redirect/{provider}/web', [SocialiteController::class, 'redirect']);
+    Route::get('redirect/{provider}' , [SocialiteController::class ,'redirect'])->name('social.redirect') ;
 
     Route::post('logout' , [LogoutController::class , 'logout'])->middleware(['auth:user-api' , 'verified']);
 
