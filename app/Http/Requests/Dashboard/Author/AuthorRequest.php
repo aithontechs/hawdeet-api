@@ -34,7 +34,7 @@ class AuthorRequest extends FormRequest
                     ->numbers()
                     ->symbols(),
             ],
-            'birth_date' => $this->isMethod('post') ? ['required','date' ,  'before_or_equal:' . now()->subYears(15)->toDateString(), ] : ['sometimes', 'date' ,  'before_or_equal:' . now()->subYears(8)->toDateString(), ],
+            'birth_date' => ['nullable','date' ,  'before_or_equal:' . now()->subYears(15)->toDateString(), ] ,
         ];
     }
 
@@ -42,7 +42,7 @@ class AuthorRequest extends FormRequest
     {
         return [
             'phone.regex' => 'رقم الهاتف يجب أن يكون رقم محمول مصري صحيح.',
-            'birth_date.before_or_equal' => 'يجب ألا يقل العمر عن 8 سنوات.',
+            'birth_date.before_or_equal' => 'يجب ألا يقل العمر عن 15 سنة.',
             'password.min' => 'كلمة المرور يجب أن تحتوي على 12 أحرف على الأقل.',
             'password.max' => 'كلمة المرور يجب ألا تزيد عن 50 حرفًا.',
             'password.mixed' => 'كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير.',
