@@ -19,11 +19,9 @@ class SocialiteController extends Controller
     public function login($provider)
     {
         abort_unless(in_array($provider, $this->allowedProviders), 404);
+
         $platform = request('platform', 'mobile');
-
-        $redirectUrl = route('social.redirect', ['provider' => $provider]) . '?platform=' . $platform;
-
-        $url = Socialite::driver($provider)->stateless()->redirectUrl($redirectUrl)->redirect()->getTargetUrl();
+        $url = Socialite::driver($provider)->stateless()->with(['state' => $platform])->redirect()->getTargetUrl();
 
         if ($platform === 'mobile') {
             return $this->successApi(['url' => $url], 'Redirect to social provider');
@@ -36,12 +34,10 @@ class SocialiteController extends Controller
     {
         abort_unless(in_array($provider, $this->allowedProviders), 404);
 
-        $platform = request('platform', 'mobile');
-
-        $redirectUrl = route('social.redirect', ['provider' => $provider]) . '?platform=' . $platform;
+        $platform = request('state', 'mobile');
 
         try {
-            $socialiteUser = Socialite::driver($provider)->stateless()->redirectUrl($redirectUrl)->user();
+            $socialiteUser = Socialite::driver($provider)->stateless()->user();
         } catch (\Exception $e) {
             return $this->handleFailure($platform, 'Social login failed');
         }
@@ -101,7 +97,6 @@ class SocialiteController extends Controller
     protected function handleWebRedirect(string $token)
     {
         $frontendUrl = rtrim(config('services.frontend.url'), '/');
-
         return redirect($frontendUrl . '/auth/callback?token=' . $token);
     }
 }
