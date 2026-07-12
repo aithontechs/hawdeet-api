@@ -89,8 +89,14 @@ Route::group(['prefix'=> 'v1/admin'], function () {
         Route::apiResource('admins' , AdminController::class)->except(['show']) ;
         Route::get('payments' , [PaymentController::class , 'index']) ;
 
-
-        Route::post('/notifications/broadcast', [AdminNotificationController::class, 'broadcast']);
+        Route::prefix('/notifications')->group(function(){
+            Route::post('/broadcast', [AdminNotificationController::class, 'broadcast']);
+            Route::get('/', [AdminNotificationController::class, 'getNotifications']);
+            Route::patch('/{id}/read', [AdminNotificationController::class, 'markAsRead']);
+            Route::patch('/read-all', [AdminNotificationController::class, 'markAsReadAll']);
+            Route::delete('/', [AdminNotificationController::class, 'destroyAll']);
+            Route::delete('/{id}', [AdminNotificationController::class, 'destroy']);
+        });
 
 
         Route::prefix('chat')->group(function () {
@@ -116,5 +122,3 @@ Route::group(['prefix'=> 'v1/admin'], function () {
 
     });
 });
-
-

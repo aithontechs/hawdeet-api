@@ -2,6 +2,7 @@
 
 namespace App\Services\Purchase;
 
+use App\Models\Admin;
 use App\Models\Book;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -9,11 +10,13 @@ use App\Models\Payment;
 use App\Models\PhysicalOrder;
 use App\Models\ShippingAddress;
 use App\Models\User;
+use App\Notifications\NewOrderCreated;
 use App\Services\Payment\PaymobService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class BookPurchaseService
@@ -65,7 +68,7 @@ class BookPurchaseService
                     'delivery_status'    => 'pending',
                 ]);
             }
-
+            Notification::send(Admin::active()->get(), new NewOrderCreated($user));
             return $order->load('items');
         });
     }

@@ -28,6 +28,12 @@ class Admin extends Authenticatable implements JWTSubject
         'email_verified_at' => 'datetime',
     ] ;
 
+    public function scopeActive($query)
+    {
+        return $this->where('is_active' , 1) ;
+        
+    }
+
     public function getAvatarUrlAttribute()
     {
         if (!$this->attributes['avatar_url']) {
