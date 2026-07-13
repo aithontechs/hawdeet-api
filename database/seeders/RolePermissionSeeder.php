@@ -79,6 +79,22 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'Create Admin', 'permission' => 'admin.create'],
             ['name' => 'Change Role and toggle activated Admins', 'permission' => 'admin.update'],
             ['name' => 'Delete Admin', 'permission' => 'admin.delete'],
+
+            ['name' => 'View Posts' , 'permission' => 'post.view'] ,
+            ['name' => 'Show Post' , 'permission' => 'post.show'] ,
+            ['name' => 'Create Post' , 'permission' => 'post.create'] ,
+            ['name' => 'Delete Post' , 'permission' => 'post.delete'] ,
+            ['name' => 'Approve Post' , 'permission' => 'post.approve'] ,
+
+            ['name' => 'View Comments' , 'permission' => 'comment.view'] ,
+            ['name' => 'Delete Comment' , 'permission' => 'comment.delete'] ,
+
+            ['name' => 'View Reading Councils' , 'permission' => 'readingcouncil.view'] ,
+            ['name' => 'Show Reading Council' , 'permission' => 'readingcouncil.show'] ,
+            ['name' => 'Create Reading Council' , 'permission' => 'readingcouncil.create'] ,
+            ['name' => 'Update Reading Council' , 'permission' => 'readingcouncil.update'] ,
+            ['name' => 'Delete Reading Council' , 'permission' => 'readingcouncil.delete'] ,
+
         ];
 
         foreach ($permissions as $permission) {
@@ -88,23 +104,23 @@ class RolePermissionSeeder extends Seeder
             );
         }
 
-        $role = Role::firstOrCreate([
-            'name' => 'Super Admin'
-        ]);
+        // $role = Role::firstOrCreate([
+        //     'name' => 'Super Admin'
+        // ]);
 
-        $role->permissions()->sync(
-            Permission::pluck('id')->toArray()
-        );
+        // $role->permissions()->sync(
+        //     Permission::pluck('id')->toArray()
+        // );
 
-        Admin::firstOrCreate(
-            ['email' => 'superadmin@gmail.com'],
-            [
-                'name'      => 'Super Admin',
-                'phone'     => '0123456789',
-                'password'  => '123456789',
-                'role_id'   => $role->id,
-                'is_active' => true,
-            ]
-        );
+        // Admin::firstOrCreate(
+        //     ['email' => 'superadmin@gmail.com'],
+        //     [
+        //         'name'      => 'Super Admin',
+        //         'phone'     => '0123456789',
+        //         'password'  => '123456789',
+        //         'role_id'   => $role->id,
+        //         'is_active' => true,
+        //     ]
+        // );
     }
 }

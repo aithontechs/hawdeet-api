@@ -6,7 +6,7 @@ use App\Models\Admin;
 use App\Models\Post;
 use App\Models\User;
 
-class PostPolicy
+class PostPolicy extends ModelPolicy
 {
     public function __construct()
     {
@@ -29,7 +29,9 @@ class PostPolicy
 
     public function delete(User | Admin $actor, Post $post)
     {
-        if ($actor instanceof Admin) return true;
+        if ($actor instanceof Admin) {
+            return $actor->hasPermission('post.delete');
+        }
         return $post->isOwnedBy($actor);
     }
 

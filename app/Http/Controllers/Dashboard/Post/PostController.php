@@ -17,6 +17,7 @@ class PostController extends Controller
 
     public function index(Request $request)
     {
+        $this->authorize('viewAny', Post::class) ;
         $posts = $this->postService->getPostsDashboard();
         return $this->successApi($posts , 'post fetched successfully') ;
     }
@@ -30,6 +31,7 @@ class PostController extends Controller
 
     public function show(Post $post)
     {
+        $this->authorize('view', Post::class) ;
         return $this->successApi($post ,'Post Fetched successfully') ;
     }
 
@@ -49,6 +51,7 @@ class PostController extends Controller
 
     public function approve(Post $post)
     {
+        $this->authorize('approve', $post) ;
         $post = $this->postService->approvePost($post) ;
         return $this->successApi($post ,'Post approved successfully') ;
 

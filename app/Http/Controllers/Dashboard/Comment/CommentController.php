@@ -19,6 +19,7 @@ class CommentController extends Controller
 
     public function index()
     {
+        $this->authorize('viewAny', Comment::class) ;
         $comments = $this->commentService->getCommentsDashboard();
         return $this->successApi($comments , 'Comments fetched successfully') ;
     }

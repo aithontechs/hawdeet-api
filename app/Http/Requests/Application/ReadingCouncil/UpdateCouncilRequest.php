@@ -23,8 +23,8 @@ class UpdateCouncilRequest extends FormRequest
     {
         return [
             'title'        => 'sometimes|string|max:255',
-            'description'  => 'sometimes|nullable|string',
-            'status'       => 'sometimes|   ',
+            'description'  => 'sometimes|nullable|string|max:300',
+            'status'       => 'sometimes|in:upcoming,active,closed',
         ];
     }
 }
