@@ -153,7 +153,7 @@ class PostService
 
     public function getPostsDashboard()
     {
-        $query = Post::query()->with('postable:id,name')->orderByDesc('published_at')->paginate(15);
+        $query = Post::query()->with('postable:id,name')->orderByDesc('created_at')->paginate(15);
         return $query ;
     }
 

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('books', function (Blueprint $table) {
             $table->string('size_book')->nullable()->after('is_free');
-            $table->unsignedInteger('release_year')->nullable()->after('size_book');
+            $table->unsignedInteger('')->nullable()->after('size_book');
         });
     }
 
