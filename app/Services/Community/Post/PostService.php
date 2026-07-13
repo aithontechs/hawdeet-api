@@ -106,7 +106,7 @@ class PostService
     public function getPosts(string $paginationType = 'cursor')
     {
         $actor = auth('user-api')->user() ?? auth('admin-api')->user();
-        
+
         $query = Post::query()
             ->with('postable:id,name,avatar_url')
             ->where('is_published', true)
@@ -151,11 +151,29 @@ class PostService
             });
     }
 
-
-
     public function getPostsDashboard()
     {
         $query = Post::query()->with('postable:id,name')->orderByDesc('published_at')->paginate(15);
         return $query ;
+    }
+
+    public function getPost(Post $post): Post
+    {
+        $post->load('postable:id,name,avatar_url');
+
+        $actor = auth('user-api')->user() ?? auth('admin-api')->user();
+
+        if ($actor) {
+            $post->loadExists([
+                'likes as is_like' => function ($q) use ($actor) {
+                    $q->where('liker_type', get_class($actor))
+                    ->where('liker_id', $actor->id);
+                }
+            ]);
+        } else {
+            $post->setAttribute('is_like', false);
+        }
+
+        return $post;
     }
 }

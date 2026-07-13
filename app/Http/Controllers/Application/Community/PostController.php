@@ -31,7 +31,7 @@ class PostController extends Controller
 
     public function show(Post $post)
     {
-        return $this->successApi($post ,'Post Fetched successfully') ;
+        return $this->successApi($this->postService->getPost($post) ,'Post Fetched successfully') ;
     }
 
     public function update(PostUpdateRequest $request, Post $post)
