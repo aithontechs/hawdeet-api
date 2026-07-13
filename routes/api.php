@@ -41,6 +41,7 @@ Route::group(['prefix'=> 'v1/admin'], function () {
         Route::get('permissions/dropdown' , [PermissionController::class , 'getPermissionsForDropdown']) ;
         Route::apiResource('permissions' , PermissionController::class)->only(['index' ,'show' ]) ;
         Route::apiResource('categories' , CategoryController::class) ;
+        Route::get('me/access', [PermissionController::class, 'getPermissionsForUser'] );
 
         Route::get('users/export', [UserController::class, 'export']);
         Route::apiResource('users' , UserController::class) ;

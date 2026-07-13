@@ -54,4 +54,11 @@ class PermissionController extends Controller
         $permissions = Permission::filter($request->only('search'))->get();
         return $this->successApi($permissions , 'Permissions fetched successfully') ;
     }
+
+    public function getPermissionsForUser(Request $request)
+    {
+        $admin = $request->user()->load('role.permissions');
+
+        return $this->successApi(['role' => $admin->role?->name,'permissions' => $admin->role?->permissions ?? [],], 'Access fetched successfully');
+    }
 }
