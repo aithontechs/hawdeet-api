@@ -105,11 +105,22 @@ class PostService
 
     public function getPosts(string $paginationType = 'cursor')
     {
+        $actor = auth('user-api')->user() ?? auth('admin-api')->user();
+        
         $query = Post::query()
             ->with('postable:id,name,avatar_url')
             ->where('is_published', true)
             ->where('is_approved',  true)
             ->orderByDesc('published_at');
+
+        if ($actor) {
+            $query->withExists([
+                'likes as is_like' => function ($q) use ($actor) {
+                    $q->where('liker_type', get_class($actor))
+                    ->where('liker_id', $actor->id);
+                }
+            ]);
+        }
 
         return match($paginationType) {
             'simple' => $query->simplePaginate(10),   // mobile

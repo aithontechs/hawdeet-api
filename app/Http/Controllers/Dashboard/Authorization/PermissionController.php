@@ -23,11 +23,11 @@ class PermissionController extends Controller
         return $this->successApi($permissions , 'Permissions fetched successfully') ;
     }
 
-    public function store(PermissionRequest $request)
-    {
-        $permission = Permission::insert($request->validated()['permissions']) ;
-        return $this->successApi($permission ,'Permission Created successfully');
-    }
+    // public function store(PermissionRequest $request)
+    // {
+    //     $permission = Permission::insert($request->validated()['permissions']) ;
+    //     return $this->successApi($permission ,'Permission Created successfully');
+    // }
 
     public function show(Permission $permission)
     {
@@ -35,18 +35,23 @@ class PermissionController extends Controller
     }
 
 
-    public function update(Request $request, Permission $permission)
+    // public function update(Request $request, Permission $permission)
+    // {
+    //     $validated = $request->validate(['name' => 'required|string|min:5|max:60']) ;
+    //     $permission->update($validated) ;
+    //     return $this->successApi($permission ,'Permission Updated successfully');
+    // }
+
+
+    // public function destroy(Permission $permission)
+    // {
+    //     $permission->delete() ;
+    //     return $this->successApi(null ,'Permission deleted successfully') ;
+    // }
+
+    public function getPermissionsForDropdown(Request $request)
     {
-        $validated = $request->validate(['name' => 'required|string|min:5|max:60']) ;
-        $permission->update($validated) ;
-        return $this->successApi($permission ,'Permission Updated successfully');
-    }
-
-
-    public function destroy(Permission $permission)
-    {
-        $permission->delete() ;
-        return $this->successApi(null ,'Permission deleted successfully') ;
-
+        $permissions = Permission::filter($request->only('search'))->get();
+        return $this->successApi($permissions , 'Permissions fetched successfully') ;
     }
 }

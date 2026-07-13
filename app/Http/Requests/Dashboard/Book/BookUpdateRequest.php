@@ -49,7 +49,8 @@ class BookUpdateRequest extends FormRequest
             'physical_compare_price' => ['nullable', 'numeric', 'min:0', 'gt:physical_price'],
             'physical_stock'         => [$isPhysical ? 'sometimes' : 'nullable', 'integer', 'min:1'],
             'total_pages'   => [$isPhysical ? 'sometimes' : 'nullable', 'integer', 'min:1'],
-
+            'size_book' => ['sometimes' , 'string' , 'min:2' , 'max:10'],
+            'release_year' => ['sometimes' , 'integer' , 'digits:4' , 'min:1920' , 'max:' . date('Y')],
         ];
     }
 

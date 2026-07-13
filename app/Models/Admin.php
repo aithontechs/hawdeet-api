@@ -31,7 +31,12 @@ class Admin extends Authenticatable implements JWTSubject
     public function scopeActive($query)
     {
         return $this->where('is_active' , 1) ;
-        
+
+    }
+
+    public function posts()
+    {
+        return $this->morphMany(Post::class, 'postable');
     }
 
     public function getAvatarUrlAttribute()

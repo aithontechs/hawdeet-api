@@ -46,6 +46,14 @@ class AdminController extends Controller
 
     public function destroy(Admin $admin)
     {
+        if($admin->id === auth('admin-api')->id()){
+            return $this->errorApi('You cannot delete your own account.', 403);
+        }
+
+        if ($admin->posts()->exists()) {
+            return $this->errorApi('This admin cannot be deleted because they have posts.',422);
+        }
+
         if ($admin->getRawOriginal('avatar_url')) {
             Storage::disk('public')->delete($admin->getRawOriginal('avatar_url'));
         }

@@ -38,7 +38,8 @@ Route::group(['prefix'=> 'v1/admin'], function () {
     // Authorization
     Route::group(['middleware'=> 'auth:admin-api'], function () {
         Route::apiResource('roles' , RoleController::class) ;
-        Route::apiResource('permissions' , PermissionController::class) ;
+        Route::get('permissions/dropdown' , [PermissionController::class , 'getPermissionsForDropdown']) ;
+        Route::apiResource('permissions' , PermissionController::class)->only(['index' ,'show' ]) ;
         Route::apiResource('categories' , CategoryController::class) ;
 
         Route::get('users/export', [UserController::class, 'export']);
