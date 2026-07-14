@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Dashboard\Book;
 
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -50,7 +51,11 @@ class BookUpdateRequest extends FormRequest
             'physical_stock'         => [$isPhysical ? 'sometimes' : 'nullable', 'integer', 'min:1'],
             'total_pages'   => [$isPhysical ? 'sometimes' : 'nullable', 'integer', 'min:1'],
             'size_book' => ['sometimes' , 'string' , 'min:2' , 'max:10'],
-            'release_year' => ['sometimes' , 'integer' , 'digits:4' , 'min:1920' , 'max:' . date('Y')],
+            'release_year' => ['sometimes' , 'integer' , 'digits:4' , 'min:1900' , 'max:' . Carbon::now()->addYear()->year],
+
+            'physical_hard_cover_price'         => ['nullable', 'numeric', 'min:0'],
+            'physical_hard_cover_compare_price' => ['nullable', 'numeric', 'gt:physical_hard_cover_price'],
+            'physical_hard_cover_stock'         => ['nullable', 'integer', 'min:0'],
         ];
     }
 

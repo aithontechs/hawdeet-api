@@ -18,6 +18,7 @@ class Cart extends Model
         'book_id',
         'item_type',
         'quantity',
+        'cover_type'
     ];
 
 

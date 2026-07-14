@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Application\Cart;
 
 use App\Http\Controllers\Controller;
+use App\Models\Cart;
 use App\Services\Cart\CartService;
 use App\Services\Coupon\CouponService;
 use App\Traits\ResponseApi;
@@ -39,10 +40,11 @@ class CartController extends Controller
             'book_id' => 'required|integer|exists:books,id',
             'item_type' => 'required|in:digital,physical',
             'quantity'  => 'integer|min:1|max:99',
+            'cover_type' => 'required_if:item_type,physical|nullable|in:normal,hard_cover',
         ]);
         $cookieId = $this->cartService->getOrCreateCookieId($request);
         $user     = auth('user-api')->user() ;
-        $cartItem = $this->cartService->addItem(cookieId: $cookieId,bookId: $request->book_id,itemType: $request->input('item_type', 'digital'),quantity: $request->input('quantity', 1),user:$user);
+        $cartItem = $this->cartService->addItem(cookieId: $cookieId,bookId: $request->book_id,itemType: $request->input('item_type', 'digital'),quantity: $request->input('quantity', 1),user:$user , coverType: $request->input('cover_type'));
         return $this->successApi($cartItem, 'Cart added successfully' , 201);
     }
 

@@ -53,6 +53,7 @@ class BookPurchaseService
                     'book_name'=> $item['title'],
                     'price'    => $item['unit_price'],
                     'item_type'=> $item['item_type'],
+                    'cover_type' => $item['item_type'] === 'physical' ? $item['cover_type'] : null,
                     'quantity' => $item['quantity'],
                     'access_duration_days' => $item['item_type'] === 'digital' ? 365 : null,
                 ]);
@@ -170,7 +171,8 @@ class BookPurchaseService
 
             if ($item['item_type'] === 'physical') {
                 $book = Book::find($item['book_id']);
-                if (!$book || $book->physical_stock < $item['quantity']) {
+                $coverType = $item['cover_type'] ?? 'normal';
+                if (!$book || $book->physicalStockFor($coverType) < $item['quantity']) {
                     throw ValidationException::withMessages([
                         'books' => "Not enough stock for \"{$item['title']}\".",
                     ]);
@@ -184,7 +186,7 @@ class BookPurchaseService
     {
         $itemsSignature = $items
             ->sortBy('book_id')
-            ->map(fn ($i) => "{$i['book_id']}:{$i['item_type']}:{$i['quantity']}")
+            ->map(fn ($i) => "{$i['book_id']}:{$i['item_type']}:{$i['cover_type']}:{$i['quantity']}")
             ->join(',');
 
         $cartIds = $items->pluck('cart_id')->sort()->join(',');
@@ -226,4 +228,5 @@ class BookPurchaseService
             'postal_code'  => 'N/A',  'state'   => 'N/A',
         ];
     }
+
 }

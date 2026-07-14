@@ -43,6 +43,9 @@ class BookService
                 $data['physical_price']  = null ;
                 $data['physical_compare_price'] = null ;
                 $data['physical_stock']  = 0;
+                $data['physical_hard_cover_price'] = null;
+                $data['physical_hard_cover_compare_price'] = null;
+                $data['physical_hard_cover_stock'] = 0;
             }
         }
 
@@ -150,6 +153,9 @@ class BookService
             $data['physical_price']         = 0;
             $data['physical_compare_price'] = 0;
             $data['physical_stock']         = 0;
+            $data['physical_hard_cover_price'] = null;
+            $data['physical_hard_cover_compare_price'] = null;
+            $data['physical_hard_cover_stock'] = 0;
         } elseif ($type === 'physical') {
             $data['price']         = 0;
             $data['compare_price'] = 0;

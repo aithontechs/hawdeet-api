@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Application\Payment;
 
 use App\Http\Controllers\Controller;
+use App\Models\Order;
 use App\Models\Payment;
 use App\Notifications\PaymentSuccessNotification;
 use App\Services\Cart\CartService;
@@ -136,6 +137,7 @@ class PaymentController extends Controller
         if (!$order || $order->payment_status === 'paid') return;
 
         DB::transaction(function () use ($order) {
+            $this->deductPhysicalStock($order);
             $this->grantService->grantBookAccess($order);
             $this->cartService->clearCart(null, $order->user_id);
             $order->update(['payment_status' => 'paid', 'paid_at' => now()]);
@@ -176,5 +178,34 @@ class PaymentController extends Controller
         return str_contains($merchantOrderId, 'PAY-')
             ? explode('-', $merchantOrderId)[1]
             : $merchantOrderId;
+    }
+
+    private function deductPhysicalStock(Order $order): void
+    {
+        $physicalItems = $order->items()->where('item_type', 'physical')->get();
+
+        foreach ($physicalItems as $item) {
+            $column = $item->cover_type === 'hard_cover'
+                ? 'physical_hard_cover_stock'
+                : 'physical_stock';
+
+            $affected = DB::table('books')
+                ->where('id', $item->book_id)
+                ->where($column, '>=', $item->quantity)
+                ->decrement($column, $item->quantity);
+
+            if (!$affected) {
+                DB::table('books')->where('id', $item->book_id)->decrement($column, 0);
+
+                Log::critical("OVERSELL: Stock deduction failed for paid order. Manual intervention required.", [
+                    'order_id'   => $order->id,
+                    'book_id'    => $item->book_id,
+                    'cover_type' => $item->cover_type,
+                    'quantity'   => $item->quantity,
+                ]);
+
+
+            }
+        }
     }
 }

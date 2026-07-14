@@ -24,6 +24,9 @@ class Book extends Model
         'physical_price',
         'physical_compare_price',
         'physical_stock',
+        'physical_hard_cover_price',
+        'physical_hard_cover_compare_price',
+        'physical_hard_cover_stock',
         'age_min',
         'total_pages',
         'avg_rating',
@@ -45,6 +48,9 @@ class Book extends Model
         'physical_price' => 'decimal:2',
         'physical_compare_price' => 'decimal:2',
         'physical_stock'=> 'integer',
+        'physical_hard_cover_price' => 'decimal:2',
+        'physical_hard_cover_compare_price' => 'decimal:2',
+        'physical_hard_cover_stock' => 'integer',
         'avg_rating'    => 'float',
         'is_free'       => 'boolean',
         'published'     => 'boolean',
@@ -179,7 +185,7 @@ class Book extends Model
 
     public function hasPhysicalStock(): bool
     {
-        return $this->isPhysical() && $this->physical_stock > 0;
+        return $this->isPhysical() && ($this->physical_stock > 0 || $this->physical_hard_cover_stock > 0);
     }
 
     public function isAccessibleByUser(int $userId): bool
@@ -188,6 +194,43 @@ class Book extends Model
             ->where('user_id', $userId)
             ->active()
             ->exists();
+    }
+
+
+    public function physicalPriceFor($coverType): ?float
+    {
+        return match ($coverType) {
+            'hard_cover' => $this->physical_hard_cover_price,
+            default      => $this->physical_price,
+        };
+    }
+
+    public function physicalStockFor(string $coverType): int
+    {
+        return match ($coverType) {
+            'hard_cover' => (int) $this->physical_hard_cover_stock,
+            default      => (int) $this->physical_stock,
+        };
+    }
+
+    public function offersCoverType(string $coverType): bool
+    {
+        if (!$this->isPhysical()) return false;
+
+        return match ($coverType) {
+            'hard_cover' => !is_null($this->physical_hard_cover_price),
+            'normal'     => !is_null($this->physical_price),
+            default      => false,
+        };
+    }
+
+    public function hasPhysicalStockFor(string $coverType)
+    {
+        return match ($coverType) {
+            'normal'  => $this->isPhysical() && $this->physical_stock > 0,
+            'hard_cover' => $this->isPhysical() && $this->physical_hard_cover_stock > 0,
+            default   => false,
+        };
     }
 
 }

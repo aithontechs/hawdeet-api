@@ -30,14 +30,22 @@ class CartService
         return $cookieId ;
     }
 
-    public function addItem(?string $cookieId, int $bookId, string $itemType = 'digital', int $quantity = 1, ?User $user = null): Cart
+    public function addItem(?string $cookieId, int $bookId, string $itemType = 'digital', int $quantity = 1, ?User $user = null , ?string $coverType = null): Cart
     {
         $book = Book::where('id', $bookId)->where('published', 1)->firstOrFail();
 
         $this->validateItemType($book, $itemType);
 
         if ($itemType === 'physical') {
-            $this->validateStock($book, $quantity);
+            $coverType = $coverType ?: 'normal';
+            if (! $book->offersCoverType($coverType)) {
+                throw ValidationException::withMessages([
+                    'cover_type' => "This book is not available as {$coverType}.",
+                ]);
+            }
+            $this->validateStock($book, $quantity , $coverType);
+        }else {
+            $coverType = null;
         }
 
         if ($user) {
@@ -60,6 +68,7 @@ class CartService
                     'user_id'   => $user->id,
                     'book_id'   => $bookId,
                     'item_type' => $itemType,
+                    'cover_type' => $coverType,
                 ],
                 ['quantity' => $itemType === 'physical' ? $quantity : 1]
             );
@@ -69,6 +78,7 @@ class CartService
                     'cookie_id' => $cookieId,
                     'book_id'   => $bookId,
                     'item_type' => $itemType,
+                    'cover_type' => $coverType,
                 ],
                 ['quantity' => $itemType === 'physical' ? $quantity : 1]
             );
@@ -76,10 +86,11 @@ class CartService
 
         if (!$cartItem->wasRecentlyCreated && $itemType === 'physical') {
             $newQuantity = $cartItem->quantity + $quantity;
+            $availableStock = $book->physicalStockFor($coverType);
 
-            if ($newQuantity > $book->physical_stock) {
+            if ($newQuantity > $availableStock) {
                 throw ValidationException::withMessages([
-                    'quantity' => "Cannot add {$quantity} more. Only {$book->physical_stock} in stock and you already have {$cartItem->quantity} in cart.",
+                    'quantity' => "Cannot add {$quantity} more. Only {$availableStock} in stock and you already have {$cartItem->quantity} in cart.",
                 ]);
             }
 
@@ -101,13 +112,13 @@ class CartService
     public function getItems(?string $cookieId, ?User $user)
     {
         return Cart::forSession($cookieId, $user?->id)
-            ->with(['book:id,title,price,physical_price,is_subscription_included,cover,type,author_id' , 'book.author:id,name'])
+            ->with(['book:id,title,price,physical_price,physical_hard_cover_price,is_subscription_included,cover,type,author_id' , 'book.author:id,name'])
 
             ->get()
             ->map(function (Cart $item) use ($user) {
                 $price = $item->item_type === 'digital'
                     ? $item->book->price
-                    : $item->book->physical_price;
+                    : $item->book->physicalPriceFor($item->cover_type);
 
                 return [
                     'cart_id'         => $item->id,
@@ -115,6 +126,7 @@ class CartService
                     'book_cover'      => $item->book->cover_url,
                     'title'           => $item->book->title,
                     'item_type'       => $item->item_type,
+                    'cover_type'      => $item->cover_type,
                     'quantity'        => $item->quantity,
                     'unit_price'      => $price,
                     'total_price'     => $price * $item->quantity,
@@ -130,12 +142,12 @@ class CartService
     public function getTotal(?string $cookieId, ?User $user): float
     {
         return Cart::forSession($cookieId, $user?->id)
-                ->with('book:id,price,physical_price,type')
+                ->with('book:id,price,physical_price,physical_hard_cover_price,type')
                 ->get()
                 ->sum(function (Cart $item) {
                     $price = $item->item_type === 'digital'
                         ? $item->book->price
-                        : $item->book->physical_price;
+                        : $item->book->physicalPriceFor($item->cover_type);
 
                     return $price * $item->quantity;
                 });
@@ -162,17 +174,18 @@ class CartService
         }
     }
 
-    private function validateStock(Book $book, int $quantity): void
+    private function validateStock(Book $book, int $quantity , string $coverType): void
     {
-        if ($book->physical_stock <= 0) {
+        $availableStock = $book->physicalStockFor($coverType);
+        if ($availableStock <= 0) {
             throw ValidationException::withMessages([
                 'quantity' => 'This book is out of stock.',
             ]);
         }
 
-        if ($quantity > $book->physical_stock) {
+        if ($quantity > $availableStock) {
             throw ValidationException::withMessages([
-                'quantity' => "Only {$book->physical_stock} copies available.",
+                'quantity' => "Only {$availableStock} copies available.",
             ]);
         }
     }
@@ -184,12 +197,14 @@ class CartService
             ? $query->where('user_id', $user->id)
             : $query->where('cookie_id', $cookieId);
 
-        $cartItem = $query->with('book:id,title,price,physical_price,physical_stock,cover')->firstOrFail();
+        $cartItem = $query->with('book:id,title,price,physical_price,physical_hard_cover_price,physical_hard_cover_stock,physical_stock,cover')->firstOrFail();
+
+        $availableStock = $cartItem->book->physicalStockFor($cartItem->cover_type);
 
         if ($action === 'increment') {
-            if ($cartItem->quantity >= $cartItem->book->physical_stock) {
+            if ($cartItem->quantity >= $availableStock) {
                 throw ValidationException::withMessages([
-                    'quantity' => "Cannot add more. Only {$cartItem->book->physical_stock} in stock.",
+                    'quantity' => "Cannot add more. Only {$availableStock} in stock.",
                 ]);
             }
             $cartItem->increment('quantity');
@@ -203,6 +218,7 @@ class CartService
         }
 
         $cartItem->refresh();
+        $unitPrice = $cartItem->book->physicalPriceFor($cartItem->cover_type);
 
         return [
             'removed'     => false,
@@ -210,9 +226,10 @@ class CartService
             'book_id'     => $cartItem->book_id,
             'title'       => $cartItem->book->title,
             'item_type'   => $cartItem->item_type,
+            'cover_type'  => $cartItem->cover_type,
             'quantity'    => $cartItem->quantity,
-            'unit_price'  => $cartItem->book->physical_price,
-            'total_price' => $cartItem->book->physical_price * $cartItem->quantity,
+            'unit_price'  => $unitPrice,
+            'total_price' => $unitPrice * $cartItem->quantity,
         ];
     }
 
@@ -234,13 +251,15 @@ class CartService
             $existingItem = Cart::where('user_id', $user->id)
                 ->where('book_id', $guestItem->book_id)
                 ->where('item_type', $guestItem->item_type)
+                ->where('cover_type', $guestItem->cover_type)
                 ->first();
 
             if ($existingItem) {
                 if ($guestItem->item_type === 'physical') {
+                    $availableStock = $book->physicalStockFor($guestItem->cover_type);
                     $newQuantity = $existingItem->quantity + $guestItem->quantity;
-                    $finalQuantity = min($newQuantity, $book->physical_stock);
-                    $existingItem->update(['quantity' => $finalQuantity]);
+                    // $finalQuantity = min($newQuantity, $book->physical_stock);
+                    $existingItem->update(['quantity' => min($newQuantity, $availableStock)]);
                 }
             } else {
                 $guestItem->update([
@@ -266,13 +285,10 @@ class CartService
                     : $cartItemQuery->where('cookie_id', $cookieId);
 
                 $cartItem = $cartItemQuery
-                    ->with('book:id,physical_stock,physical_price')
+                    ->with('book:id,physical_stock,physical_price,physical_hard_cover_stock,physical_hard_cover_price')
                     ->first();
 
-                if (
-                    ! $cartItem ||
-                    $cartItem->item_type !== 'physical'
-                ) {
+                if (! $cartItem || $cartItem->item_type !== 'physical'){
                     continue;
                 }
 
@@ -289,9 +305,11 @@ class CartService
                     continue;
                 }
 
-                if ($quantity > $cartItem->book->physical_stock) {
+                $availableStock = $cartItem->book->physicalStockFor($cartItem->cover_type);
+
+                if ($quantity > $availableStock) {
                     throw ValidationException::withMessages([
-                        'quantity' => "Only {$cartItem->book->physical_stock} available for book id = {$cartItem->book_id}.",
+                        'quantity' => "Only {$availableStock} available for book id = {$cartItem->book_id}.",
                     ]);
                 }
 
@@ -316,7 +334,7 @@ class CartService
         $query = Cart::where('item_type', 'physical');
 
         $user? $query->where('user_id', $user->id) : $query->where('cookie_id', $cookieId);
-        $items = $query->with('book:id,physical_stock,physical_price')->get();
+        $items = $query->with('book:id,physical_stock,physical_price,physical_hard_cover_stock,physical_hard_cover_price')->get();
 
         $results = [];
 
@@ -325,8 +343,9 @@ class CartService
             foreach ($items as $cartItem) {
 
                 if ($action === 'increment') {
+                    $availableStock = $cartItem->book->physicalStockFor($cartItem->cover_type);
 
-                    if ($cartItem->quantity < $cartItem->book->physical_stock) {
+                    if ($cartItem->quantity < $availableStock) {
                         $cartItem->increment('quantity');
 
                         $results[] = [
@@ -360,4 +379,6 @@ class CartService
 
         return $results;
     }
+
+
 }
