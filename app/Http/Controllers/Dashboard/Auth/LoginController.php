@@ -31,6 +31,8 @@ class LoginController extends Controller
             ], 403);
         }
         $tokens =  $this->respondWithToken($token);
+        $admin->tokens_invalidated_at = null;
+        $admin->save();
         return $this->successApi($tokens , 'Admin login Seccessfully') ;
     }
 

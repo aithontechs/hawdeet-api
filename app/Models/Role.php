@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Events\Auth\RoleUpdated;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -43,7 +44,7 @@ class Role extends Model
                 $permissions = array_unique($data['permissions']);
                 $this->permissions()->sync($permissions);
             }
-
+            event(new RoleUpdated($this));
             return $this->load('permissions');
         });
     }

@@ -26,6 +26,7 @@ class Admin extends Authenticatable implements JWTSubject
         'password' => 'hashed' ,
         'is_active' => 'boolean' ,
         'email_verified_at' => 'datetime',
+        'tokens_invalidated_at' => 'datetime',
     ] ;
 
     public function scopeActive($query)
