@@ -10,7 +10,7 @@ class OrderItem extends Model
     use HasFactory;
 
     protected $fillable = [
-        'order_id', 'book_id', 'book_name' , 'price', 'access_duration_days', 'item_type' , 'quantity'
+        'order_id', 'book_id', 'book_name' , 'price', 'access_duration_days', 'item_type' , 'quantity','cover_type'
     ];
 
     public $hidden = ['created_at' , 'updated_at'];
