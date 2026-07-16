@@ -109,7 +109,7 @@ class HomeController extends Controller
         $query = Book::select([
                         'id','title','type','price','compare_price',
                         'physical_price','physical_compare_price',
-                        'physical_stock','avg_rating','cover',
+                        'physical_stock','physical_hard_cover_price' , 'physical_hard_cover_compare_price','physical_hard_cover_stock','avg_rating','cover',
                         'author_id','is_subscription_included','is_free',
                     ])
                     ->with('author:id,name')
@@ -148,7 +148,7 @@ class HomeController extends Controller
         $books = Book::select([
                         'id','title','type','price','compare_price',
                         'physical_price','physical_compare_price',
-                        'physical_stock','avg_rating','cover',
+                        'physical_stock','physical_hard_cover_price' , 'physical_hard_cover_compare_price','physical_hard_cover_stock','avg_rating','cover',
                         'author_id','is_subscription_included','is_free',
                     ])
                     ->with('author:id,name')
