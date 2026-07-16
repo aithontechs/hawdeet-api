@@ -214,6 +214,9 @@ class HomeController extends Controller
             $data['physical_price']         = $book->physical_price;
             $data['physical_compare_price'] = $book->physical_compare_price;
             $data['physical_stock']         = $book->physical_stock;
+            $data['physical_hard_cover_price'] = $book->physical_hard_cover_price;
+            $data['physical_hard_cover_compare_price'] = $book->physical_hard_cover_compare_price;
+            $data['physical_hard_cover_stock'] = $book->physical_hard_cover_stock;
         }
 
         return $data;

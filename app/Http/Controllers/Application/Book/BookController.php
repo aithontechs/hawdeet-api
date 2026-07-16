@@ -25,7 +25,7 @@ class BookController extends Controller
         $books = Book::select([
                 'id','title','type','price','compare_price',
                 'physical_price','physical_compare_price',
-                'physical_stock','avg_rating','cover','author_id',
+                'physical_stock','physical_hard_cover_price' , 'physical_hard_cover_compare_price','physical_hard_cover_stock','avg_rating','cover','author_id',
                 'is_subscription_included','is_free',
             ])
             ->with('author:id,name')
@@ -104,20 +104,6 @@ class BookController extends Controller
                 'prev_page_url' => $books->previousPageUrl(),
             ],
         ], 'Books fetched successfully');
-
-        // $books->through(fn($book) => $this->formatBook($book, $accessContext));
-
-        // return $this->successApi([
-        //     'books'      => $books->items(),
-        //     'pagination' => [
-        //         'current_page'  => $books->currentPage(),
-        //         'last_page'     => $books->lastPage(),
-        //         'per_page'      => $books->perPage(),
-        //         'total'         => $books->total(),
-        //         'next_page_url' => $books->nextPageUrl(),
-        //         'prev_page_url' => $books->previousPageUrl(),
-        //     ],
-        // ], 'Books fetched successfully');
     }
 
     public function show(Book $book)
@@ -190,6 +176,9 @@ class BookController extends Controller
             $data['physical_price']         = $book->physical_price;
             $data['physical_compare_price'] = $book->physical_compare_price;
             $data['physical_stock']         = $book->physical_stock;
+            $data['physical_hard_cover_price'] = $book->physical_hard_cover_price;
+            $data['physical_hard_cover_compare_price'] = $book->physical_hard_cover_compare_price;
+            $data['physical_hard_cover_stock'] = $book->physical_hard_cover_stock;
         }
 
         return $data;
