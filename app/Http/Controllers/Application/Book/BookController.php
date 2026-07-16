@@ -110,7 +110,9 @@ class BookController extends Controller
     {
         $user = auth()->user();
         $accessContext = $this->buildAccessContext($user);
-        return $this->successApi($this->formatBook($book, $accessContext), 'Book details fetched successfully');
+        $data = $this->formatBook($book, $accessContext);
+        $data['description'] = $book->description;
+        return $this->successApi($data, 'Book details fetched successfully');
     }
 
     public function authors(Request $request)
@@ -173,6 +175,15 @@ class BookController extends Controller
         } elseif ($type === 'physical') {
             $data['price']         = null;
             $data['compare_price'] = null;
+            $data['physical_price']         = $book->physical_price;
+            $data['physical_compare_price'] = $book->physical_compare_price;
+            $data['physical_stock']         = $book->physical_stock;
+            $data['physical_hard_cover_price'] = $book->physical_hard_cover_price;
+            $data['physical_hard_cover_compare_price'] = $book->physical_hard_cover_compare_price;
+            $data['physical_hard_cover_stock'] = $book->physical_hard_cover_stock;
+        }else{
+            $data['price']    = $book->physical_price;
+            $data['compare_price'] = $book->compare_price;
             $data['physical_price']         = $book->physical_price;
             $data['physical_compare_price'] = $book->physical_compare_price;
             $data['physical_stock']         = $book->physical_stock;
