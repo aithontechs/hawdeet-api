@@ -50,7 +50,7 @@ class CouponController extends Controller
         if($coupon->used_count > 0)
         {
             $validated = $request->validated();
-            unset($validated['discount_type'], $validated['discount_value'], $validated['code']);
+            unset($validated['discount_type'], $validated['discount_value'], $validated['code'] , $validated['discount_value_usd']);
             // return $this->errorApi('Coupon cannot be updated because it has been used before!' , 422 );
             $coupon->update($validated);
             return $this->successApi($coupon, 'Coupon updated partially successfully');

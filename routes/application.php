@@ -27,7 +27,6 @@ use App\Http\Controllers\Application\Setting\ChangePasswordController;
 use App\Http\Controllers\Application\Shipping\ShippingAddressController;
 use App\Http\Controllers\Application\Subscription\SubscriptionController;
 use App\Http\Controllers\Application\User\UserController;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Route;
 
 

@@ -109,16 +109,16 @@ class CartService
     }
 
 
-    public function getItems(?string $cookieId, ?User $user)
+    public function getItems(?string $cookieId, ?User $user , string $currency = 'EGP')
     {
         return Cart::forSession($cookieId, $user?->id)
-            ->with(['book:id,title,price,physical_price,physical_hard_cover_price,is_subscription_included,cover,type,author_id' , 'book.author:id,name'])
+            ->with(['book:id,title,price,price_usd,physical_price,physical_price_usd,physical_hard_cover_price,physical_hard_cover_price_usd,is_subscription_included,cover,type,author_id' , 'book.author:id,name'])
 
             ->get()
-            ->map(function (Cart $item) use ($user) {
+            ->map(function (Cart $item) use ($user, $currency) {
                 $price = $item->item_type === 'digital'
-                    ? $item->book->price
-                    : $item->book->physicalPriceFor($item->cover_type);
+                    ? $item->book->digitalPriceFor($currency)
+                    : $item->book->physicalPriceFor($item->cover_type, $currency);
 
                 return [
                     'cart_id'         => $item->id,
@@ -130,6 +130,7 @@ class CartService
                     'quantity'        => $item->quantity,
                     'unit_price'      => $price,
                     'total_price'     => $price * $item->quantity,
+                    'currency'   => $currency,
                     'in_subscription' => $item->item_type === 'digital'
                         && $user?->hasActiveSubscription()
                         && $item->book->is_subscription_included,
@@ -139,15 +140,15 @@ class CartService
     }
 
 
-    public function getTotal(?string $cookieId, ?User $user): float
+    public function getTotal(?string $cookieId, ?User $user, string $currency = 'EGP'): float
     {
         return Cart::forSession($cookieId, $user?->id)
-                ->with('book:id,price,physical_price,physical_hard_cover_price,type')
+                ->with('book:id,price,price_usd,physical_price,physical_price_usd,physical_hard_cover_price,physical_hard_cover_price_usd,type')
                 ->get()
-                ->sum(function (Cart $item) {
+                ->sum(function (Cart $item) use ($currency) {
                     $price = $item->item_type === 'digital'
-                        ? $item->book->price
-                        : $item->book->physicalPriceFor($item->cover_type);
+                        ? $item->book->digitalPriceFor($currency)
+                        : $item->book->physicalPriceFor($item->cover_type, $currency);
 
                     return $price * $item->quantity;
                 });
@@ -190,14 +191,14 @@ class CartService
         }
     }
 
-    public function updateQuantity(int $cartId, string $action, ?string $cookieId, ?User $user): array
+    public function updateQuantity(int $cartId, string $action, ?string $cookieId, ?User $user , string $currency = 'EGP'): array
     {
         $query = Cart::where('id', $cartId)->where('item_type', 'physical');
         $user
             ? $query->where('user_id', $user->id)
             : $query->where('cookie_id', $cookieId);
 
-        $cartItem = $query->with('book:id,title,price,physical_price,physical_hard_cover_price,physical_hard_cover_stock,physical_stock,cover')->firstOrFail();
+        $cartItem = $query->with('book:id,title,price,price_usd,physical_price,physical_price_usd,physical_hard_cover_price,physical_hard_cover_price_usd,physical_hard_cover_stock,physical_stock,cover')->firstOrFail();
 
         $availableStock = $cartItem->book->physicalStockFor($cartItem->cover_type);
 
@@ -218,7 +219,7 @@ class CartService
         }
 
         $cartItem->refresh();
-        $unitPrice = $cartItem->book->physicalPriceFor($cartItem->cover_type);
+        $unitPrice = $cartItem->book->physicalPriceFor($cartItem->cover_type, $currency);
 
         return [
             'removed'     => false,
@@ -230,6 +231,7 @@ class CartService
             'quantity'    => $cartItem->quantity,
             'unit_price'  => $unitPrice,
             'total_price' => $unitPrice * $cartItem->quantity,
+            'currency'    => $currency,
         ];
     }
 

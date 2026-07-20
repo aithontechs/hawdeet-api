@@ -27,10 +27,18 @@ class CouponStoreRequest extends FormRequest
 
                         }
                 ],
+            'discount_value_usd' => ['required_if:discount_type,fixed', 'numeric', 'min:1',
+                function ($attr, $value, $fail) {
+                    if (request('discount_type') === 'percentage' && $value > 100) {
+                        $fail('Percentage cannot exceed 100%');
+                    }
+                }
+            ],
             'start_at' => ['required', 'date' , 'after_or_equal:today'],
             'end_at' => ['required', 'date', 'after:start_at'],
             'max_uses' => ['required', 'integer', 'min:1'],
-            'min_order_amount' => ['nullable', 'numeric', 'min:1'],
+            'min_order_amount' => ['required', 'numeric', 'min:1'],
+            'min_order_amount_usd' => ['required', 'numeric', 'min:1'],
             'status' => ['nullable', 'in:active,inactive'],
         ];
     }

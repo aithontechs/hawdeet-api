@@ -39,14 +39,7 @@ class BookService
             $this->assertPdfNotEncrypted($bookFile);
             $tmpPath = $bookFile->store('pending_books', 'local');
             $data['total_pages'] = 0;
-            if($type === 'digital') {
-                $data['physical_price']  = null ;
-                $data['physical_compare_price'] = null ;
-                $data['physical_stock']  = 0;
-                $data['physical_hard_cover_price'] = null;
-                $data['physical_hard_cover_compare_price'] = null;
-                $data['physical_hard_cover_stock'] = 0;
-            }
+            $this->applyTypePricingRules($data, $type);
         }
 
         $data['cover']           = $this->storage->upload($coverFile, self::COVER_FOLDER, StorageService::DISK_PUBLIC);
@@ -149,17 +142,7 @@ class BookService
             $data['compare_price'] = 0;
         }
 
-        if ($type === 'digital') {
-            $data['physical_price']         = 0;
-            $data['physical_compare_price'] = 0;
-            $data['physical_stock']         = 0;
-            $data['physical_hard_cover_price'] = null;
-            $data['physical_hard_cover_compare_price'] = null;
-            $data['physical_hard_cover_stock'] = 0;
-        } elseif ($type === 'physical') {
-            $data['price']         = 0;
-            $data['compare_price'] = 0;
-        }
+        $this->applyTypePricingRules($data, $type);
 
         $categoryIds = $data['category_ids'] ?? null;
         unset($data['category_ids'], $data['preview_start_page'], $data['preview_end_page']);
@@ -381,5 +364,33 @@ class BookService
                 abort(422, 'This PDF file is password-protected (encrypted). Please upload an unencrypted version.');
             }
         }
+    }
+
+
+    private function applyTypePricingRules(array $data, string $type): array
+    {
+        if ($type === 'digital') {
+            $data = array_merge($data, [
+                'physical_price' => null,
+                'physical_price_usd' => null,
+                'physical_compare_price' => null,
+                'physical_compare_price_usd' => null,
+                'physical_stock' => 0,
+                'physical_hard_cover_price' => null,
+                'physical_hard_cover_price_usd' => null,
+                'physical_hard_cover_compare_price' => null,
+                'physical_hard_cover_compare_price_usd' => null,
+                'physical_hard_cover_stock' => 0,
+            ]);
+        } elseif ($type === 'physical') {
+            $data = array_merge($data, [
+                'price' => 0,
+                'price_usd' => 0,
+                'compare_price' => 0,
+                'compare_price_usd' => 0,
+            ]);
+        }
+
+        return $data;
     }
 }

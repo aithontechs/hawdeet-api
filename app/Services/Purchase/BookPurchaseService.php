@@ -11,6 +11,7 @@ use App\Models\PhysicalOrder;
 use App\Models\ShippingAddress;
 use App\Models\User;
 use App\Notifications\NewOrderCreated;
+use App\Services\Currency\ExchangeRateService;
 use App\Services\Payment\PaymobService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -21,13 +22,14 @@ use Illuminate\Validation\ValidationException;
 
 class BookPurchaseService
 {
-    public function __construct(private PaymobService $paymob) {}
+    public function __construct(private PaymobService $paymob ,private ExchangeRateService $exchangeRateService,
+) {}
 
-    public function purchase(User $user, Collection $items,float $subtotal,float $shippingCost,float $discount,float $total,string $paymentMethod,?int $shippingAddressId = null, ?string $idempotencyKey = null,): Order
+    public function purchase(User $user, Collection $items,float $subtotal,float $shippingCost,float $discount,float $total,string $paymentMethod, string $currency = 'EGP', ?int $shippingAddressId = null, ?string $idempotencyKey = null,): Order
     {
         return DB::transaction(function () use (
             $user, $items, $subtotal, $shippingCost,
-            $discount, $total, $paymentMethod, $shippingAddressId , $idempotencyKey
+            $discount, $total, $paymentMethod, $currency , $shippingAddressId , $idempotencyKey
         ) {
             $this->validateItems($user, $items);
 
@@ -41,6 +43,7 @@ class BookPurchaseService
                         'shipping_cost'=> $shippingCost,
                         'discount' => $discount,
                         'total' => $total,
+                        'currency'        => $currency,
                         'has_physical'   => $hasPhysical,
                         'payment_method' => $paymentMethod,
                         'payment_status' => 'pending',
@@ -77,18 +80,32 @@ class BookPurchaseService
     public function createPendingPayment(Order $order, User $user, string $method): Payment
     {
         $existing = Payment::where('order_id', $order->id)
-            ->where('status',  ['pending', 'failed'])
+            ->whereIn('status',  ['pending', 'failed'])
             ->first();
 
         if ($existing) {
             return $existing;
         }
 
+        $gatewayCurrency = 'EGP';
+        $gatewayAmount   = $order->total;
+        $exchangeRate    = null;
+
+        if ($order->currency === 'USD' && !config('paymob.multi_currency_supported')) {
+            $exchangeRate    = $this->exchangeRateService->usdToEgpRate();
+            $gatewayAmount   = round($order->total * $exchangeRate, 2);
+        } elseif ($order->currency === 'USD') {
+            $gatewayCurrency = 'USD';
+        }
+
         return Payment::create([
             'user_id'         => $user->id,
             'order_id'        => $order->id,
             'amount'          => $order->total,
-            'currency'        => 'EGP',
+            'currency'          => $order->currency,
+            'gateway_amount'     => $gatewayAmount,
+            'gateway_currency'   => $gatewayCurrency,
+            'exchange_rate_used' => $exchangeRate,
             'type'            => 'order',
             'status'          => 'pending',
             'payment_gateway' => 'paymob',
@@ -109,12 +126,6 @@ class BookPurchaseService
             $payment->refresh();
         }
 
-        Log::info('initiatePaymobPayment', [
-            'payment_id'      => $payment->id,
-            'paymob_order_id' => $payment->paymob_order_id,
-            'status'          => $payment->status,
-        ]);
-
         if ($payment->paymob_order_id) {
             try {
                 return $this->resumePaymobPayment($payment, $request, $method);
@@ -127,7 +138,9 @@ class BookPurchaseService
             }
         }
 
-        $amountCents = (int) ($payment->amount * 100);
+        // $amountCents = (int) ($payment->amount * 100);
+        $amountCents = (int) ($payment->gateway_amount * 100);
+
         $billingData = [
             'first_name'   => $request->input('first_name', $payment->user->name),
             'last_name'    => $request->input('last_name', '.'),
@@ -141,11 +154,11 @@ class BookPurchaseService
 
         if ($method === 'card') {
 
-            $result = $this->paymob->createCardPayment($amountCents,$billingData,"PAY-{$payment->id}-" . now()->timestamp);
+            $result = $this->paymob->createCardPayment($amountCents,$billingData,"PAY-{$payment->id}-" . now()->timestamp,$payment->gateway_currency);
             $url = $result['iframe_url'];
         } else {
 
-            $result = $this->paymob->createWalletPayment($amountCents,$billingData,"PAY-{$payment->id}-" . now()->timestamp,$request->input('phone', ''));
+            $result = $this->paymob->createWalletPayment($amountCents,$billingData,"PAY-{$payment->id}-" . now()->timestamp,$request->input('phone', '') , $payment->gateway_currency);
             $url = $result['redirect_url'];
         }
 
@@ -182,7 +195,7 @@ class BookPurchaseService
     }
 
 
-    public function buildIdempotencyKey(int $userId, Collection $items, float $subtotal, float $shippingCost, float $discount): string
+    public function buildIdempotencyKey(int $userId, Collection $items, float $subtotal, float $shippingCost, float $discount , string $currency = 'EGP'): string
     {
         $itemsSignature = $items
             ->sortBy('book_id')
@@ -191,7 +204,7 @@ class BookPurchaseService
 
         $cartIds = $items->pluck('cart_id')->sort()->join(',');
 
-        return md5("{$userId}|{$itemsSignature}|{$cartIds}|{$subtotal}|{$shippingCost}|{$discount}");
+        return md5("{$userId}|{$itemsSignature}|{$cartIds}|{$subtotal}|{$shippingCost}|{$discount}|{$currency}");
     }
 
 
@@ -204,7 +217,8 @@ class BookPurchaseService
             $amountCents,
             (int) $payment->paymob_order_id,
             $billingData,
-            $method
+            $method ,
+            $payment->gateway_currency
         );
 
         if ($method === 'card') {

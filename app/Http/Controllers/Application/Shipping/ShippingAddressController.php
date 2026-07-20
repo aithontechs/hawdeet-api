@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Application\Shipping;
 
 use App\Http\Controllers\Controller;
 use App\Models\ShippingAddress;
+use App\Services\Currency\CurrencyResolver;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -11,6 +12,9 @@ use Illuminate\Support\Facades\DB;
 class ShippingAddressController extends Controller
 {
     use ResponseApi;
+
+
+    public function __construct(private CurrencyResolver $currencyResolver) {}
 
     public function index()
     {
@@ -35,21 +39,23 @@ class ShippingAddressController extends Controller
         ]);
 
         $user = auth('user-api')->user();
+        $currency = $this->currencyResolver->resolve($request);
+
 
         $data['recipient_name'] = $data['recipient_name'] ?? $user->name;
         $data['phone']          = $data['phone'] ?? $user->phone;
         $data['country']        = 'EG';
 
-            $user->shippingAddresses()
-                ->update(['is_default' => false]);
+        $user->shippingAddresses()
+            ->update(['is_default' => false]);
 
-            $address = $user->shippingAddresses()->create([
-                ...$data,
-                'is_default' => true,
-            ]);
+        $address = $user->shippingAddresses()->create([
+            ...$data,
+            'is_default' => true,
+        ]);
 
         return $this->successApi(
-            $address->load('zone:id,name,cost'),
+            $this->withZoneCurrency($address, $currency),
             'Address added successfully',
             201
         );
@@ -60,6 +66,8 @@ class ShippingAddressController extends Controller
         if ($address->user_id !== auth('user-api')->id()) {
             return $this->errorApi('Unauthorized', 403);
         }
+
+        $currency = $this->currencyResolver->resolve($request);
 
         $data = $request->validate([
             'shipping_zone_id' => 'sometimes|exists:shipping_zones,id',
@@ -85,10 +93,7 @@ class ShippingAddressController extends Controller
             }
         });
 
-        return $this->successApi(
-            $address->fresh()->load('zone:id,name,cost'),
-            'Address updated successfully'
-        );
+        return $this->successApi($this->withZoneCurrency($address->fresh(), $currency),'Address updated successfully');
     }
 
     public function setDefault(ShippingAddress $address)
@@ -99,8 +104,7 @@ class ShippingAddressController extends Controller
 
         DB::transaction(function () use ($address) {
 
-            $address->user
-                ->shippingAddresses()
+            $address->user->shippingAddresses()
                 ->update(['is_default' => false]);
 
             $address->update([
@@ -139,5 +143,16 @@ class ShippingAddressController extends Controller
             null,
             'Address deleted successfully'
         );
+    }
+
+    private function withZoneCurrency(ShippingAddress $address, string $currency): ShippingAddress
+    {
+        $address->load('zone:id,name,cost,cost_usd,days_min,days_max');
+
+        if ($address->zone) {
+            $address->zone->cost = $address->zone->costFor($currency);
+        }
+
+        return $address;
     }
 }

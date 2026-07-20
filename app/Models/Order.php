@@ -24,7 +24,8 @@ class Order extends Model
         'idempotency_key',
         'shipping_status',
         'shipped_at',
-        'delivered_at'
+        'delivered_at',
+        'currency'
     ];
 
     protected $casts = [
@@ -100,7 +101,7 @@ class Order extends Model
         $lastOrder = static::whereYear('created_at', $year)->lockForUpdate()->latest('id')->first() ;
 
         $nextOrderNumber = 1 ;
-        
+
         if ($lastOrder) {
             preg_match('/(\d+)$/', $lastOrder->order_number, $matches);
             $nextOrderNumber = ((int) $matches[1]) + 1;

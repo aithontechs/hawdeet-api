@@ -17,7 +17,7 @@ class ShippingService
             return ShippingZone::where('is_active', true)
                 ->orderByDesc('is_default')
                 ->orderBy('name')
-                ->get(['id', 'name', 'cost', 'days_min', 'days_max']);
+                ->get(['id', 'name', 'cost' , 'cost_usd', 'days_min', 'days_max']);
         });
     }
 

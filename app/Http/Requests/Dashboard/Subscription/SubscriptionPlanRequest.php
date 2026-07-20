@@ -17,21 +17,27 @@ class SubscriptionPlanRequest extends FormRequest
         if($this->isMethod('put') || $this->isMethod('patch'))
         {
             return [
-                'name' => 'sometimes|string|max:255',
+                'name' => 'sometimes|string|min:2|max:50',
                 'duration_months' => 'sometimes|integer|min:1',
                 'price'=> 'sometimes|numeric|min:1',
+                'price_usd' => 'sometimes|numeric|min:1',
                 'compare_price' => 'nullable|numeric|min:1|gt:price',
-                'description' => 'sometimes|string',
+                'compare_price_usd' => 'nullable|numeric|min:1|gt:price_usd',
+                'description' => 'sometimes|array|min:1',
+                'description.*' => 'required|string|max:100',
                 'is_active' => 'nullable|boolean'
             ];
         }
 
         return [
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|min:2|max:50',
             'duration_months' => 'required|integer|min:1',
             'price'=> 'required|numeric|min:1',
+            'price_usd'         => 'required|numeric|min:1',
             'compare_price' => 'nullable|numeric|min:1|gt:price',
-            'description' => 'required|string',
+            'compare_price_usd' => 'nullable|numeric|min:1|gt:price_usd',
+            'description' => 'required|array|min:1',
+            'description.*' => 'required|string|max:100',
             'is_active' => 'nullable|boolean'
         ];
     }

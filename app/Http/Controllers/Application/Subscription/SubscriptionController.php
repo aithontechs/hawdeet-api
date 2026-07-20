@@ -7,6 +7,7 @@ use App\Http\Requests\Application\Subscription\SubscriptionStoreRequest;
 use App\Models\Payment;
 use App\Models\SubscriptionPlan;
 use App\Models\UserSubscription;
+use App\Services\Currency\CurrencyResolver;
 use App\Services\Subscription\SubscriptionService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
@@ -17,20 +18,37 @@ class SubscriptionController extends Controller
     use ResponseApi;
 
     public function __construct(
-        private readonly SubscriptionService $subscriptionService
+        private readonly SubscriptionService $subscriptionService,
+        private readonly CurrencyResolver $currencyResolver,
     ) {}
 
-    public function index()
+    public function index(Request $request)
     {
-        $subscriptions = SubscriptionPlan::latest()->active()->get();
+        $currency = $this->currencyResolver->resolve($request);
+        $plans = SubscriptionPlan::latest()
+            ->active()
+            ->get()
+            ->map(function ($plan) use ($currency) {
+                return [
+                    'id' => $plan->id,
+                    'name' => $plan->name,
+                    'duration_months' => $plan->duration_months,
+                    'price' => $plan->priceFor($currency),
+                    'compare_price' => $plan->comparePriceFor($currency),
+                    'currency' => $currency,
+                    'description' => $plan->description,
+                    'is_active' => $plan->is_active,
+                ];
+            });
 
-        return $this->successApi($subscriptions, 'Subscription plans fetched successfully');
+        return $this->successApi($plans, 'Subscription plans fetched successfully');
     }
 
     public function store(SubscriptionStoreRequest $request)
     {
         $user = auth('user-api')->user();
         $plan = SubscriptionPlan::findOrFail($request->plan_id);
+        $currency = $this->currencyResolver->resolve($request);
 
         abort_if($this->subscriptionService->hasActiveSubscription($user), 422, 'You already have an active subscription.');
 
@@ -39,7 +57,8 @@ class SubscriptionController extends Controller
             $coupon = $this->subscriptionService->validateCouponForSubscription(
                 $request->coupon_code,
                 $plan->price,
-                $user
+                $user,
+                $currency
             );
         }
 
@@ -52,6 +71,7 @@ class SubscriptionController extends Controller
         if ($pendingSubscription) {
             $payment = Payment::where('user_subscription_id', $pendingSubscription->id)
                 ->where('status', 'pending')
+                ->where('currency', $currency)
                 ->latest()
                 ->first();
 
@@ -62,22 +82,26 @@ class SubscriptionController extends Controller
 
                 return $this->successApi([
                     'payment_id'  => $payment->id,
+                    'original_amount' => $pendingSubscription->original_amount,
+                    'discount'        => $pendingSubscription->discount_amount,
                     'amount'      => $payment->amount,
                     'payment_url' => $paymentUrl,
+                    'currency'    => $payment->currency,
                     'status'      => 'pending',
                     'resumed'     => true,
                 ], 'Complete your pending payment.');
             }
         }
 
-        $payment    = $this->subscriptionService->initiate($user, $plan, $coupon);
+        $payment    = $this->subscriptionService->initiate($user, $plan, $coupon,$currency);
         $paymentUrl = $this->subscriptionService->initiatePaymobPayment($payment, $request, $request->payment_method);
 
         return $this->successApi([
             'payment_id'      => $payment->id,
-            'original_amount' => $payment->original_amount,
-            'discount'        => $payment->discount_amount,
+            'original_amount' => $payment->subscription->original_amount,
+            'discount'        => $payment->subscription->discount_amount,
             'amount'          => $payment->amount,
+            'currency'        => $payment->currency,
             'payment_url'     => $paymentUrl,
             'status'          => 'pending',
         ], 'Complete your payment to activate the subscription.');
@@ -97,6 +121,7 @@ class SubscriptionController extends Controller
 
         $user = auth('user-api')->user();
         $plan = SubscriptionPlan::findOrFail($request->plan_id);
+        $currency = $this->currencyResolver->resolve($request);
 
         $hasPrevious = UserSubscription::where('user_id', $user->id)
             ->whereIn('status', ['active', 'expired'])
@@ -110,7 +135,8 @@ class SubscriptionController extends Controller
             $coupon = $this->subscriptionService->validateCouponForSubscription(
                 $request->coupon_code,
                 $plan->price,
-                $user
+                $user,
+                $currency
             );
         }
 
@@ -123,6 +149,7 @@ class SubscriptionController extends Controller
         if ($pendingSubscription) {
             $payment = Payment::where('user_subscription_id', $pendingSubscription->id)
                 ->where('status', 'pending')
+                ->where('currency', $currency)
                 ->latest()
                 ->first();
 
@@ -133,7 +160,10 @@ class SubscriptionController extends Controller
 
                 return $this->successApi([
                     'payment_id'  => $payment->id,
+                    'original_amount' => $pendingSubscription->original_amount,
+                    'discount'        => $pendingSubscription->discount_amount,
                     'amount'      => $payment->amount,
+                    'currency'    => $payment->currency,
                     'payment_url' => $paymentUrl,
                     'status'      => 'pending',
                     'resumed'     => true,
@@ -141,16 +171,17 @@ class SubscriptionController extends Controller
             }
         }
 
-        $payment    = $this->subscriptionService->renew($user, $plan, $coupon);
+        $payment    = $this->subscriptionService->renew($user, $plan, $coupon,$currency);
         $paymentUrl = $this->subscriptionService->initiatePaymobPayment(
             $payment, $request, $request->payment_method
         );
 
         return $this->successApi([
             'payment_id'      => $payment->id,
-            'original_amount' => $payment->original_amount,
-            'discount'        => $payment->discount_amount,
+            'original_amount' => $pendingSubscription->original_amount,
+            'discount'        => $pendingSubscription->discount_amount,
             'amount'          => $payment->amount,
+            'currency'        => $payment->currency,
             'payment_url'     => $paymentUrl,
             'status'          => 'pending',
             'resumed'         => false,
@@ -166,8 +197,9 @@ class SubscriptionController extends Controller
 
         $user = auth('user-api')->user();
         $plan = SubscriptionPlan::findOrFail($request->plan_id);
+        $currency = $this->currencyResolver->resolve($request);
 
-        $originalAmount = $plan->price;
+        $originalAmount = $plan->priceFor($currency);
         $discount       = 0;
         $couponData     = null;
 
@@ -176,9 +208,10 @@ class SubscriptionController extends Controller
                 $coupon   = $this->subscriptionService->validateCouponForSubscription(
                     $request->coupon_code,
                     $originalAmount,
-                    $user
+                    $user,
+                    $currency
                 );
-                $discount = $this->subscriptionService->calculateCouponDiscount($coupon, $originalAmount);
+                $discount = $this->subscriptionService->calculateCouponDiscount($coupon, $originalAmount,$currency);
 
                 $couponData = [
                     'code'            => $coupon->code,
@@ -197,6 +230,7 @@ class SubscriptionController extends Controller
                 'name'     => $plan->name,
                 'duration' => $plan->duration_months,
             ],
+            'currency'        => $currency,
             'original_amount' => $originalAmount,
             'discount'        => $discount,
             'final_amount'    => $finalAmount,

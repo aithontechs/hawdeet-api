@@ -14,6 +14,7 @@ class CouponUpdateRequest extends FormRequest
 
     public function rules()
     {
+        $effectiveType = $this->input('discount_type', $this->coupon->discount_type);
         return [
             'code' => ['sometimes','string','max:255',Rule::unique('coupons', 'code')->ignore($this->coupon),],
             'discount_type' => ['sometimes', 'in:fixed,percentage'],
@@ -24,10 +25,16 @@ class CouponUpdateRequest extends FormRequest
                     }
                 }
             ],
+            'discount_value_usd' => [
+                $effectiveType === 'fixed' ? 'required' : 'nullable',
+                'numeric',
+                'min:1',
+            ],
             'start_at' => ['sometimes', 'date', 'after_or_equal:today'],
             'end_at' => ['sometimes', 'date', 'after:start_at'],
             'max_uses' => ['sometimes', 'integer', 'min:1'],
             'min_order_amount' => ['nullable', 'numeric', 'min:1'],
+            'min_order_amount_usd' => ['nullable', 'numeric', 'min:1'],
             'status' => ['sometimes', 'in:active,inactive'],
         ];
     }

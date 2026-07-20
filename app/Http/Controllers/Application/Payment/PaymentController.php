@@ -93,6 +93,18 @@ class PaymentController extends Controller
 
         $payment->refresh();
 
+        $expectedCents = (int) round($payment->gateway_amount * 100);
+        $receivedCents = (int) ($obj['amount_cents'] ?? 0);
+        $receivedCurrency = $obj['currency'] ?? null;
+        if ($receivedCents !== $expectedCents || $receivedCurrency !== $payment->gateway_currency) {
+            Log::critical('Paymob Webhook: Amount/currency mismatch detected after successful payment', [
+                'payment_id'        => $payment->id,
+                'expected_cents'    => $expectedCents,
+                'received_cents'    => $receivedCents,
+                'expected_currency' => $payment->gateway_currency,
+                'received_currency' => $receivedCurrency,
+            ]);
+        }
         if ($payment->type === 'order') {
             $this->handleOrderPayment($payment);
         } elseif ($payment->type === 'subscription') {

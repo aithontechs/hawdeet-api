@@ -30,7 +30,8 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
         'email_verified_at',
         'bio',
         'email_verification_otp' ,
-        'otp_expires_at'
+        'otp_expires_at',
+        'preferred_currency'
     ];
 
     protected $hidden = [

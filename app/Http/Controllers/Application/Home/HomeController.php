@@ -7,24 +7,43 @@ use App\Models\Book;
 use App\Models\BookReadingProgress;
 use App\Models\Category;
 use App\Services\Book\UserBookService;
+use App\Services\Currency\CurrencyResolver;
 use App\Traits\ResponseApi;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
     use ResponseApi;
 
-    public function __construct(private readonly UserBookService $userBookService) {}
+    private const BOOK_COLUMNS = [
+        'id', 'title', 'type',
+        'price', 'price_usd', 'compare_price', 'compare_price_usd',
+        'physical_price', 'physical_price_usd', 'physical_compare_price', 'physical_compare_price_usd',
+        'physical_stock',
+        'physical_hard_cover_price', 'physical_hard_cover_price_usd',
+        'physical_hard_cover_compare_price', 'physical_hard_cover_compare_price_usd',
+        'physical_hard_cover_stock',
+        'avg_rating', 'cover', 'author_id',
+        'is_subscription_included', 'is_free',
+    ];
 
-    public function index()
+    public function __construct(
+        private readonly UserBookService $userBookService,
+        private readonly CurrencyResolver $currencyResolver,
+    ) {}
+
+    public function index(Request $request)
     {
-        $user = auth()->user();
+        $user          = auth()->user();
         $accessContext = $this->buildAccessContext($user);
+        $currency      = $this->currencyResolver->resolve($request);
 
         return $this->successApi([
-            'hero'        => $this->getHeroSection($user, $accessContext),
+            'currency'    => $currency,
+            'hero'        => $this->getHeroSection($user, $accessContext, $currency),
             'categories'  => $this->getCategories(),
-            'suggestions' => $this->getSuggestedBooks($user, $accessContext),
+            'suggestions' => $this->getSuggestedBooks($user, $accessContext, null, $currency),
         ], 'Home fetched successfully');
     }
 
@@ -40,30 +59,27 @@ class HomeController extends Controller
         ];
     }
 
-
-    private function getHeroSection($user, array $accessContext): array
+    private function getHeroSection($user, array $accessContext, string $currency): array
     {
         if ($user) {
             $progress = BookReadingProgress::query()
-                                ->with([
-                                    'book' => fn($q) => $q->select([
-                                        'id','title','type','price','compare_price',
-                                        'physical_price','physical_compare_price',
-                                        'physical_stock','avg_rating','cover',
-                                        'author_id',
-                                    ])->with('author:id,name'),
-                                ])
-                                ->where('user_id', $user->id)
-                                ->whereNotNull('last_read_at')
-                                ->latest('last_read_at')
-                                ->first();
+                ->with([
+                    'book' => fn($q) => $q->select([...self::BOOK_COLUMNS , 'description'])->with('author:id,name'),
+                ])
+                ->where('user_id', $user->id)
+                ->whereNotNull('last_read_at')
+                ->latest('last_read_at')
+                ->first();
+
 
             if ($progress?->book) {
+                $book = $this->formatBook($progress->book, $accessContext, $currency);
+                $book['description'] = $progress->book->description;
                 return [
                     'type'     => $progress->status === 'completed'
                                     ? 'completed'
                                     : 'continue_reading',
-                    'book'     => $this->formatBook($progress->book, $accessContext),
+                    'book'     => $book ,
                     'progress' => [
                         'current_page' => $progress->current_page,
                         'total_pages'  => $progress->total_pages,
@@ -74,24 +90,24 @@ class HomeController extends Controller
             }
         }
 
-        $latest = Book::select([
-                'id','title','type','price','compare_price',
-                'physical_price','physical_compare_price',
-                'physical_stock','avg_rating','cover',
-                'author_id'
-            ])
+        $latest = Book::select([...self::BOOK_COLUMNS , 'description'])
             ->with('author:id,name')
             ->where('published', true)
             ->latest()
             ->first();
 
+        $book = null;
+
+        if ($latest) {
+            $book = $this->formatBook($latest, $accessContext, $currency);
+            $book['description'] = $latest->description;
+        }
         return [
             'type'     => 'latest_release',
-            'book'     => $latest ? $this->formatBook($latest, $accessContext) : null,
+            'book'     => $book ,
             'progress' => null,
         ];
     }
-
 
     private function getCategories(): array
     {
@@ -104,16 +120,11 @@ class HomeController extends Controller
             ->toArray();
     }
 
-    private function getSuggestedBooks($user, array $accessContext, ?int $categoryId = null): array
+    private function getSuggestedBooks($user, array $accessContext, ?int $categoryId = null, string $currency = 'EGP'): array
     {
-        $query = Book::select([
-                        'id','title','type','price','compare_price',
-                        'physical_price','physical_compare_price',
-                        'physical_stock','physical_hard_cover_price' , 'physical_hard_cover_compare_price','physical_hard_cover_stock','avg_rating','cover',
-                        'author_id','is_subscription_included','is_free',
-                    ])
-                    ->with('author:id,name')
-                    ->where('published', true);
+        $query = Book::select(self::BOOK_COLUMNS)
+            ->with('author:id,name')
+            ->where('published', true);
 
         if ($categoryId) {
             $query->whereHas('categories', fn($q) =>
@@ -136,35 +147,32 @@ class HomeController extends Controller
         }
 
         return $query->orderByDesc('avg_rating')->limit(10)->get()
-                    ->flatMap(fn($book) => $this->expandBook($book, $accessContext))
-                    ->toArray();
+            ->flatMap(fn($book) => $this->expandBook($book, $accessContext, $currency))
+            ->toArray();
     }
 
-    public function categoryBooks(Category $category)
+    public function categoryBooks(Request $request, Category $category)
     {
         $user          = auth()->user();
         $accessContext = $this->buildAccessContext($user);
+        $currency      = $this->currencyResolver->resolve($request);
 
-        $books = Book::select([
-                        'id','title','type','price','compare_price',
-                        'physical_price','physical_compare_price',
-                        'physical_stock','physical_hard_cover_price' , 'physical_hard_cover_compare_price','physical_hard_cover_stock','avg_rating','cover',
-                        'author_id','is_subscription_included','is_free',
-                    ])
-                    ->with('author:id,name')
-                    ->where('published', true)
-                    ->whereHas('categories', fn($q) =>
-                        $q->where('categories.id', $category->id)
-                    )
-                    ->orderByDesc('avg_rating')
-                    ->paginate(10);
+        $books = Book::select(self::BOOK_COLUMNS)
+            ->with('author:id,name')
+            ->where('published', true)
+            ->whereHas('categories', fn($q) =>
+                $q->where('categories.id', $category->id)
+            )
+            ->orderByDesc('avg_rating')
+            ->paginate(10);
 
         $formattedBooks = collect($books->items())
-            ->flatMap(fn($book) => $this->expandBook($book, $accessContext))
+            ->flatMap(fn($book) => $this->expandBook($book, $accessContext, $currency))
             ->values();
 
         return $this->successApi([
             'category'   => ['id' => $category->id, 'name' => $category->name],
+            'currency'   => $currency,
             'books'      => $formattedBooks,
             'pagination' => [
                 'current_page'  => $books->currentPage(),
@@ -177,7 +185,7 @@ class HomeController extends Controller
         ], 'Category books fetched successfully');
     }
 
-    private function formatBook(Book $book, array $accessContext, string $typeOverride = null): array
+    private function formatBook(Book $book, array $accessContext, string $currency, string $typeOverride = null): array
     {
         $hasDirect          = in_array($book->id, $accessContext['accessibleBookIds']);
         $hasViaSubscription = $accessContext['hasSubscription'] && $book->is_subscription_included;
@@ -185,17 +193,17 @@ class HomeController extends Controller
         $type = $typeOverride ?? $book->type;
 
         $data = [
-            'id'                       => $book->id,
-            'title'                    => $book->title,
-            'type'                     => $type,
-            'avg_rating'               => $book->avg_rating,
-            'author_id'                => $book->author_id,
+            'id'         => $book->id,
+            'title'      => $book->title,
+            'type'       => $type,
+            'avg_rating' => $book->avg_rating,
+            'author_id'  => $book->author_id,
             'is_subscription_included' => $book->is_subscription_included,
-            'is_free'                  => $book->is_free,
-            'cover_url'                => $book->cover_url,
-            'author'                   => $book->author ? ['id' => $book->author->id, 'name' => $book->author->name] : null,
+            'is_free'   => $book->is_free,
+            'cover_url' => $book->cover_url,
+            'author'    => $book->author ? ['id' => $book->author->id, 'name' => $book->author->name] : null,
             'access' => [
-                'has_access'       => $hasDirect || $hasViaSubscription || $book->is_free,
+                'has_access'   => $hasDirect || $hasViaSubscription || $book->is_free,
                 'via_purchase'     => $hasDirect,
                 'via_subscription' => $hasViaSubscription,
                 'has_subscription' => $accessContext['hasSubscription'],
@@ -203,34 +211,43 @@ class HomeController extends Controller
         ];
 
         if ($type === 'digital') {
-            $data['price']                  = $book->price;
-            $data['compare_price']          = $book->compare_price;
-            $data['physical_price']         = null;
+            $data['price']   = $book->digitalPriceFor($currency);
+            $data['compare_price']  = $book->comparePriceFor('compare_price', $currency);
+            $data['physical_price'] = null;
             $data['physical_compare_price'] = null;
-            $data['physical_stock']         = 0;
+            $data['physical_stock']  = 0;
         } elseif ($type === 'physical') {
-            $data['price']                  = null;
-            $data['compare_price']          = null;
-            $data['physical_price']         = $book->physical_price;
-            $data['physical_compare_price'] = $book->physical_compare_price;
-            $data['physical_stock']         = $book->physical_stock;
-            $data['physical_hard_cover_price'] = $book->physical_hard_cover_price;
-            $data['physical_hard_cover_compare_price'] = $book->physical_hard_cover_compare_price;
-            $data['physical_hard_cover_stock'] = $book->physical_hard_cover_stock;
+            $data['price'] = null;
+            $data['compare_price']  = null;
+            $data['physical_price'] = $book->physicalPriceFor('normal', $currency);
+            $data['physical_compare_price']     = $book->comparePriceFor('physical_compare_price', $currency);
+            $data['physical_stock']  = $book->physical_stock;
+            $data['physical_hard_cover_price']  = $book->physicalPriceFor('hard_cover', $currency);
+            $data['physical_hard_cover_compare_price']   = $book->comparePriceFor('physical_hard_cover_compare_price', $currency); // 🆕 إصلاح
+            $data['physical_hard_cover_stock']    = $book->physical_hard_cover_stock;
+        } else {
+            $data['price'] = $book->digitalPriceFor($currency);
+            $data['compare_price']   = $book->comparePriceFor('compare_price', $currency);
+            $data['physical_price']  = $book->physicalPriceFor('normal', $currency);
+            $data['physical_compare_price']           = $book->comparePriceFor('physical_compare_price', $currency);
+            $data['physical_stock']                   = $book->physical_stock;
+            $data['physical_hard_cover_price']        = $book->physicalPriceFor('hard_cover', $currency);
+            $data['physical_hard_cover_compare_price']= $book->comparePriceFor('physical_hard_cover_compare_price', $currency);
+            $data['physical_hard_cover_stock']        = $book->physical_hard_cover_stock;
         }
 
         return $data;
     }
 
-    private function expandBook(Book $book, array $accessContext): array
+    private function expandBook(Book $book, array $accessContext, string $currency): array
     {
         if ($book->type === 'both') {
             return [
-                $this->formatBook($book, $accessContext, 'digital'),
-                $this->formatBook($book, $accessContext, 'physical'),
+                $this->formatBook($book, $accessContext, $currency, 'digital'),
+                $this->formatBook($book, $accessContext, $currency, 'physical'),
             ];
         }
 
-        return [$this->formatBook($book, $accessContext)];
+        return [$this->formatBook($book, $accessContext, $currency)];
     }
 }

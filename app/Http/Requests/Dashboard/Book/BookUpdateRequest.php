@@ -56,6 +56,13 @@ class BookUpdateRequest extends FormRequest
             'physical_hard_cover_price'         => ['nullable', 'numeric', 'min:0'],
             'physical_hard_cover_compare_price' => ['nullable', 'numeric', 'gt:physical_hard_cover_price'],
             'physical_hard_cover_stock'         => ['nullable', 'integer', 'min:0'],
+
+            'price_usd' => [$isDigital ? 'sometimes' : 'nullable', 'numeric', 'min:0'],
+            'compare_price_usd' => ['nullable', 'numeric', 'gt:price_usd'],
+            'physical_price_usd' => [$isPhysical ? 'sometimes' : 'nullable', 'numeric', 'min:0'],
+            'physical_compare_price_usd' => ['nullable', 'numeric', 'gt:physical_price_usd'],
+            'physical_hard_cover_price_usd' => ['nullable', 'numeric    ', 'min:0'],
+            'physical_hard_cover_compare_price_usd' => ['nullable', 'numeric', 'gt:physical_hard_cover_price_usd'],
         ];
     }
 

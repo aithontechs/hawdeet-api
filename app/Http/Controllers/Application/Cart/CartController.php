@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Services\Cart\CartService;
 use App\Services\Coupon\CouponService;
+use App\Services\Currency\CurrencyResolver;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
 
@@ -14,20 +15,24 @@ class CartController extends Controller
     use ResponseApi ;
     public function __construct(
         private CartService        $cartService,
-        private CouponService $couponService
+        private CouponService $couponService,
+        private CurrencyResolver $currencyResolver,
     ) {}
 
     public function index(Request $request)
     {
         $cookieId = $this->cartService->getOrCreateCookieId($request);
         $user     = auth('user-api')->user();
+        $currency = $this->currencyResolver->resolve($request);
 
-        $items = $this->cartService->getItems($cookieId, $user);
-        $total = $this->cartService->getTotal($cookieId, $user);
+
+        $items = $this->cartService->getItems($cookieId, $user , $currency);
+        $total = $this->cartService->getTotal($cookieId, $user, $currency);
 
         return $this->successApi([
                 'items'      => $items,
                 'total'      => $total,
+                'currency'    => $currency,
                 'item_count' => $items->count(),
                 'is_guest'   => is_null($user),
                 'guest_token' => $cookieId,
@@ -60,26 +65,26 @@ class CartController extends Controller
     }
 
     // preview coupons only without applying
-    public function applyCoupon(Request $request)
-    {
-        $request->validate([
-            'coupon_code' => 'required|string',
-        ]);
+    // public function applyCoupon(Request $request)
+    // {
+    //     $request->validate([
+    //         'coupon_code' => 'required|string',
+    //     ]);
 
-        $user     = auth('user-api')->user();
-        $cookieId = $this->cartService->getOrCreateCookieId($request);
-        $total    = $this->cartService->getTotal($cookieId, $user);
+    //     $user     = auth('user-api')->user();
+    //     $cookieId = $this->cartService->getOrCreateCookieId($request);
+    //     $total    = $this->cartService->getTotal($cookieId, $user);
 
-        $coupon   = $this->couponService->validate($request->coupon_code, $total, $user);
-        $discount = $this->couponService->calculateDiscount($coupon, $total);
+    //     $coupon   = $this->couponService->validate($request->coupon_code, $total, $user );
+    //     $discount = $this->couponService->calculateDiscount($coupon, $total);
 
-        return $this->successApi([
-            'original_total'  => $total,
-            'discount'        => $discount,
-            'final_total'     => $total - $discount,
-            'coupon_code'     => $coupon->code,
-        ], 'Coupon applied successfully');
-    }
+    //     return $this->successApi([
+    //         'original_total'  => $total,
+    //         'discount'        => $discount,
+    //         'final_total'     => $total - $discount,
+    //         'coupon_code'     => $coupon->code,
+    //     ], 'Coupon applied successfully');
+    // }
 
     public function updateQuantity(Request $request, $cartId)
     {
@@ -89,12 +94,14 @@ class CartController extends Controller
 
         $user     = auth('user-api')->user();
         $cookieId = $this->cartService->getOrCreateCookieId($request);
+        $currency = $this->currencyResolver->resolve($request);
 
         $result = $this->cartService->updateQuantity(
             cartId:   $cartId,
             action:   $request->action,
             cookieId: $cookieId,
-            user:     $user
+            user:     $user,
+            currency: $currency,
         );
 
         $message = $result['removed'] ? 'Item removed from cart' : 'Quantity updated successfully';
@@ -111,15 +118,17 @@ class CartController extends Controller
 
         $user = auth('user-api')->user();
         $cookieId = $this->cartService->getOrCreateCookieId($request);
+        $currency = $this->currencyResolver->resolve($request);
 
         $this->cartService->updateItemsQuantity(items: $request->items,cookieId: $cookieId,user: $user);
 
-        $items = $this->cartService->getItems($cookieId, $user);
-        $total = $this->cartService->getTotal($cookieId, $user);
+        $items = $this->cartService->getItems($cookieId, $user , $currency);
+        $total = $this->cartService->getTotal($cookieId, $user , $currency);
 
         return $this->successApi([
             'items'      => $items,
             'total'      => $total,
+            'currency'   => $currency,
             'item_count' => $items->count(),
         ], 'Cart updated successfully');
     }

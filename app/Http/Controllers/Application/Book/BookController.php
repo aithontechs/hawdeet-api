@@ -8,26 +8,34 @@ use App\Models\Book;
 use App\Models\Category;
 use App\Models\User;
 use App\Services\Book\UserBookService;
+use App\Services\Currency\CurrencyResolver;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
 
 class BookController extends Controller
 {
     use ResponseApi;
+    private const BOOK_COLUMNS = [
+        'id', 'title', 'type',
+        'price', 'price_usd', 'compare_price', 'compare_price_usd',
+        'physical_price', 'physical_price_usd', 'physical_compare_price', 'physical_compare_price_usd',
+        'physical_stock',
+        'physical_hard_cover_price', 'physical_hard_cover_price_usd',
+        'physical_hard_cover_compare_price', 'physical_hard_cover_compare_price_usd',
+        'physical_hard_cover_stock',
+        'avg_rating', 'cover', 'author_id',
+        'is_subscription_included', 'is_free',
+    ];
 
-    public function __construct(private readonly UserBookService $userBookService) {}
+    public function __construct(private readonly UserBookService $userBookService , private readonly CurrencyResolver $currencyResolver) {}
 
     public function index(BookFilterRequest $request)
     {
         $user          = auth()->user();
         $accessContext = $this->buildAccessContext($user);
+        $currency  = $this->currencyResolver->resolve($request);
 
-        $books = Book::select([
-                'id','title','type','price','compare_price',
-                'physical_price','physical_compare_price',
-                'physical_stock','physical_hard_cover_price' , 'physical_hard_cover_compare_price','physical_hard_cover_stock','avg_rating','cover','author_id',
-                'is_subscription_included','is_free',
-            ])
+        $books = Book::select(self::BOOK_COLUMNS)
             ->with('author:id,name')
             ->where('published', true)
             ->when($request->filled('search'), fn($q) =>
@@ -58,14 +66,11 @@ class BookController extends Controller
             ->when($request->filled('author_id'), fn($q) =>
                 $q->where('author_id', $request->author_id)
             )
-            ->when($request->filled('language'), fn($q) =>
-                $q->where('language', $request->language)
-            )
             ->when($request->filled('price_min'), fn($q) =>
-                $q->where('price', '>=', $request->price_min)
+                $q->where($currency === 'USD' ? 'price_usd' : 'price', '>=', $request->price_min)
             )
             ->when($request->filled('price_max'), fn($q) =>
-                $q->where('price', '<=', $request->price_max)
+                $q->where($currency === 'USD' ? 'price_usd' : 'price', '<=', $request->price_max)
             )
             ->when($request->filled('rating_min'), fn($q) =>
                 $q->where('avg_rating', '>=', $request->rating_min)
@@ -73,10 +78,11 @@ class BookController extends Controller
             ->when($request->filled('type'), fn($q) =>
                 $q->where('type', $request->type)
             )
-            ->when(true, function ($q) use ($request) {
+            ->when(true, function ($q) use ($request, $currency) {
+                $priceColumn = $currency === 'USD' ? 'price_usd' : 'price';
                 match ($request->sort ?? 'latest') {
-                    'price_asc'  => $q->orderBy('price', 'asc'),
-                    'price_desc' => $q->orderBy('price', 'desc'),
+                    'price_asc'  => $q->orderBy($priceColumn, 'asc'),
+                    'price_desc' => $q->orderBy($priceColumn, 'desc'),
                     'rating'     => $q->orderByDesc('avg_rating'),
                     default      => $q->latest(),
                 };
@@ -86,15 +92,16 @@ class BookController extends Controller
         $formattedBooks = collect();
         foreach ($books->items() as $book) {
             if ($book->type === 'both') {
-                $formattedBooks->push($this->formatBook($book, $accessContext, 'digital'));
-                $formattedBooks->push($this->formatBook($book, $accessContext, 'physical'));
+                $formattedBooks->push($this->formatBook($book, $accessContext, $currency, 'digital'));
+                $formattedBooks->push($this->formatBook($book, $accessContext, $currency, 'physical'));
             } else {
-                $formattedBooks->push($this->formatBook($book, $accessContext));
+                $formattedBooks->push($this->formatBook($book, $accessContext, $currency));
             }
         }
 
         return $this->successApi([
             'books'      => $formattedBooks->values(),
+            'currency'   => $currency,
             'pagination' => [
                 'current_page'  => $books->currentPage(),
                 'last_page'     => $books->lastPage(),
@@ -106,12 +113,14 @@ class BookController extends Controller
         ], 'Books fetched successfully');
     }
 
-    public function show(Book $book)
+    public function show(Request $request , Book $book)
     {
         $user = auth()->user();
         $accessContext = $this->buildAccessContext($user);
-        $data = $this->formatBook($book, $accessContext);
+        $currency    = $this->currencyResolver->resolve($request);
+        $data = $this->formatBook($book, $accessContext, $currency);
         $data['description'] = $book->description;
+        $data['currency'] = $currency ;
         return $this->successApi($data, 'Book details fetched successfully');
     }
 
@@ -141,9 +150,9 @@ class BookController extends Controller
         ];
     }
 
-    private function formatBook(Book $book, array $accessContext, string $typeOverride = null): array
+    private function formatBook(Book $book, array $accessContext ,string $currency, string $typeOverride = null): array
     {
-        $hasDirect          = in_array($book->id, $accessContext['accessibleBookIds']);
+        $hasDirect = in_array($book->id, $accessContext['accessibleBookIds']);
         $hasViaSubscription = $accessContext['hasSubscription'] && $book->is_subscription_included;
 
         $type = $typeOverride ?? $book->type;
@@ -167,28 +176,28 @@ class BookController extends Controller
         ];
 
         if ($type === 'digital') {
-            $data['price']    = $book->price;
-            $data['compare_price'] = $book->compare_price;
+            $data['price']    = $book->digitalPriceFor($currency);
+            $data['compare_price'] = $book->comparePriceFor('compare_price', $currency);
             $data['physical_price']  = null;
             $data['physical_compare_price'] = null;
             $data['physical_stock']  = 0;
         } elseif ($type === 'physical') {
             $data['price']         = null;
             $data['compare_price'] = null;
-            $data['physical_price']         = $book->physical_price;
-            $data['physical_compare_price'] = $book->physical_compare_price;
+            $data['physical_price']         = $book->physicalPriceFor('normal', $currency);
+            $data['physical_compare_price'] = $book->comparePriceFor('physical_compare_price', $currency);
             $data['physical_stock']         = $book->physical_stock;
-            $data['physical_hard_cover_price'] = $book->physical_hard_cover_price;
-            $data['physical_hard_cover_compare_price'] = $book->physical_hard_cover_compare_price;
+            $data['physical_hard_cover_price'] = $book->physicalPriceFor('hard_cover', $currency);
+            $data['physical_hard_cover_compare_price'] = $book->comparePriceFor($book, 'physical_hard_cover_compare_price', $currency);
             $data['physical_hard_cover_stock'] = $book->physical_hard_cover_stock;
         }else{
-            $data['price']    = $book->physical_price;
-            $data['compare_price'] = $book->compare_price;
-            $data['physical_price']         = $book->physical_price;
-            $data['physical_compare_price'] = $book->physical_compare_price;
+            $data['price']   = $book->digitalPriceFor($currency);
+            $data['compare_price'] = $book->comparePriceFor('compare_price', $currency);
+            $data['physical_price']    = $book->physicalPriceFor('normal', $currency);
+            $data['physical_compare_price'] = $book->comparePriceFor('physical_compare_price', $currency);
             $data['physical_stock']         = $book->physical_stock;
-            $data['physical_hard_cover_price'] = $book->physical_hard_cover_price;
-            $data['physical_hard_cover_compare_price'] = $book->physical_hard_cover_compare_price;
+            $data['physical_hard_cover_price'] = $book->physicalPriceFor('hard_cover', $currency);
+            $data['physical_hard_cover_compare_price']= $book->comparePriceFor('physical_hard_cover_compare_price', $currency);
             $data['physical_hard_cover_stock'] = $book->physical_hard_cover_stock;
         }
 
@@ -210,4 +219,6 @@ class BookController extends Controller
         $flatten($category->childrenRecursive);
         return $ids;
     }
+
+
 }

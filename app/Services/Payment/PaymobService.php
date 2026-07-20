@@ -30,13 +30,13 @@ class PaymobService
         return $response->json('token');
     }
 
-    private function createOrder(string $token, int $amountCents, string $merchantOrderId): int
+    private function createOrder(string $token, int $amountCents, string $merchantOrderId, string $currency = 'EGP'): int
     {
         $response = Http::post("{$this->baseUrl}/ecommerce/orders", [
             'auth_token'        => $token,
             'delivery_needed'   => false,
             'amount_cents'      => $amountCents,
-            'currency'          => 'EGP',
+            'currency'          => $currency,
             'merchant_order_id' => $merchantOrderId,
             'items'             => [],
         ]);
@@ -53,14 +53,15 @@ class PaymobService
         int    $amountCents,
         int    $orderId,
         int    $integrationId,
-        array  $billingData
+        array  $billingData,
+        string $currency = 'EGP'
     ): string {
         $response = Http::post("{$this->baseUrl}/acceptance/payment_keys", [
             'auth_token'     => $token,
             'amount_cents'   => $amountCents,
             'expiration'     => 3600,
             'order_id'       => $orderId,
-            'currency'       => 'EGP',
+            'currency'       => $currency,
             'integration_id' => $integrationId,
             'billing_data'   => $billingData,
         ]);
@@ -72,15 +73,18 @@ class PaymobService
         return $response->json('token');
     }
 
-    public function createCardPayment(int $amountCents, array $billingData, string $merchantOrderId): array
+    public function createCardPayment(int $amountCents, array $billingData, string $merchantOrderId , string $currency = 'EGP'): array
     {
+        Log::info('Paymob createCardPayment called', [
+        'amount_cents' => $amountCents,
+        'currency'     => $currency,
+        'merchant_order_id' => $merchantOrderId,
+    ]);
         $token      = $this->getAuthToken();
-        $orderId    = $this->createOrder($token, $amountCents, $merchantOrderId);
-        $paymentKey = $this->getPaymentKey(
-            $token, $amountCents, $orderId,
-            config('paymob.card_integration'),
-            $billingData
-        );
+        $orderId    = $this->createOrder($token, $amountCents, $merchantOrderId , $currency);
+        $integrationId = $currency === 'USD' ? config('paymob.card_integration_usd') : config('paymob.card_integration');
+        $paymentKey = $this->getPaymentKey($token, $amountCents, $orderId, $integrationId, $billingData , $currency );
+
 
         $iframeId  = config('paymob.iframe_id');
         $iframeUrl = "https://accept.paymob.com/api/acceptance/iframes/{$iframeId}?payment_token={$paymentKey}";
@@ -92,15 +96,16 @@ class PaymobService
         ];
     }
 
-    public function createWalletPayment(int $amountCents, array $billingData, string $merchantOrderId, string $phoneNumber): array
+    public function createWalletPayment(int $amountCents, array $billingData, string $merchantOrderId, string $phoneNumber , string $currency = 'EGP'  ): array
     {
         $token      = $this->getAuthToken();
         $orderId    = $this->createOrder($token, $amountCents, $merchantOrderId);
-        $paymentKey = $this->getPaymentKey(
-            $token, $amountCents, $orderId,
-            config('paymob.wallet_integration'),
-            $billingData
-        );
+        $integrationId = $currency === 'USD'
+            ? config('paymob.wallet_integration_usd')
+            : config('paymob.wallet_integration');
+
+        $paymentKey = $this->getPaymentKey($token, $amountCents, $orderId, $integrationId, $billingData , $currency );
+
 
         $response = Http::post("{$this->baseUrl}/acceptance/payments/pay", [
             'source' => [
@@ -232,19 +237,24 @@ class PaymobService
     int    $amountCents,
     int    $paymobOrderId,
     array  $billingData,
-    string $method
+    string $method ,
+    string $currency = 'EGP'
     ): string {
         $token         = $this->getAuthToken();
-        $integrationId = $method === 'card'
-            ? config('paymob.card_integration')
-            : config('paymob.wallet_integration');
+        $integrationId = match (true) {
+            $method === 'card' && $currency === 'USD'   => config('paymob.card_integration_usd'),
+            $method === 'card'   => config('paymob.card_integration'),
+            $currency === 'USD'  => config('paymob.wallet_integration_usd'),
+            default => config('paymob.wallet_integration'),
+        };
 
         return $this->getPaymentKey(
             $token,
             $amountCents,
             $paymobOrderId,
             $integrationId,
-            $billingData
+            $billingData,
+            $currency
         );
     }
 

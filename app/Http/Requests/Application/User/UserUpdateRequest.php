@@ -19,7 +19,8 @@ class UserUpdateRequest extends FormRequest
             'phone' => ['sometimes', 'regex:/^01[0125][0-9]{8}$/' ,  Rule::unique('users', 'phone')->Ignore(auth()->id())],
             'birth_date' => ['sometimes', 'date' , 'before_or_equal:' . now()->subYears(8)->toDateString(), ],
             'avatar_url' => 'sometimes|image|max:5120',
-            'bio' => 'sometimes|string|max:1000'
+            'bio' => 'sometimes|string|max:1000',
+            'preferred_currency' => 'sometimes|in:EGP,USD'
         ];
     }
 

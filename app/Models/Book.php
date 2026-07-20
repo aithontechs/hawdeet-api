@@ -39,7 +39,13 @@ class Book extends Model
         'is_subscription_included',
         'file_processed',
         'size_book' ,
-        'release_year'
+        'release_year',
+        'price_usd',
+        'compare_price_usd',
+        'physical_price_usd',
+        'physical_compare_price_usd',
+        'physical_hard_cover_price_usd',
+        'physical_hard_cover_compare_price_usd',
     ];
 
     protected $casts = [
@@ -58,6 +64,12 @@ class Book extends Model
         'age_min'       => 'integer',
         'total_pages'   => 'integer',
         'reviews_count' => 'integer',
+        'price_usd' => 'decimal:2',
+        'compare_price_usd' => 'decimal:2',
+        'physical_price_usd' => 'decimal:2',
+        'physical_compare_price_usd' => 'decimal:2',
+        'physical_hard_cover_price_usd' => 'decimal:2',
+        'physical_hard_cover_compare_price_usd' => 'decimal:2',
     ];
 
     protected $hidden = ['file', 'preview' , 'cover'];
@@ -197,12 +209,20 @@ class Book extends Model
     }
 
 
-    public function physicalPriceFor($coverType): ?float
+    public function physicalPriceFor($coverType, string $currency = 'EGP'): ?float
     {
-        return match ($coverType) {
-            'hard_cover' => $this->physical_hard_cover_price,
-            default      => $this->physical_price,
+        $field = match ($coverType) {
+            'hard_cover' => 'physical_hard_cover_price',
+            default      => 'physical_price',
         };
+
+        if ($currency === 'USD') {
+            return $this->{$field . '_usd'} !== null
+                ? (float) $this->{$field . '_usd'}
+                : (float) $this->{$field};
+        }
+
+        return (float) $this->{$field};
     }
 
     public function physicalStockFor(string $coverType): int
@@ -231,6 +251,25 @@ class Book extends Model
             'hard_cover' => $this->isPhysical() && $this->physical_hard_cover_stock > 0,
             default   => false,
         };
+    }
+
+    public function digitalPriceFor(string $currency = 'EGP'): ?float
+    {
+        if ($currency === 'USD') {
+            return $this->price_usd !== null ? (float) $this->price_usd : (float) $this->price;
+        }
+        return (float) $this->price;
+    }
+
+    public function comparePriceFor(string $field, string $currency = 'EGP'): ?float
+    {
+        if ($currency === 'USD') {
+            $usdField = $field . '_usd';
+            if ($this->{$usdField} !== null) {
+                return (float) $this->{$usdField};
+            }
+        }
+        return $this->{$field} !== null ? (float) $this->{$field} : null;
     }
 
 }

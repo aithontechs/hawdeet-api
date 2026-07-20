@@ -6,6 +6,7 @@ use App\Models\{Payment, SubscriptionPlan, User, UserSubscription};
 use App\Models\Coupon;
 use App\Models\UserBook;
 use App\Services\Coupon\CouponService;
+use App\Services\Currency\ExchangeRateService;
 use App\Services\Payment\PaymobService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -17,16 +18,17 @@ class SubscriptionService
 {
     public function __construct(
         private PaymobService $paymob,
-        private readonly CouponService $couponService
+        private readonly CouponService $couponService,
+        private readonly ExchangeRateService $exchangeRateService,
     ) {}
 
-    public function initiate(User $user, SubscriptionPlan $plan, ?Coupon $coupon = null): Payment
+    public function initiate(User $user, SubscriptionPlan $plan, ?Coupon $coupon = null, string $currency = 'EGP'): Payment
     {
-        return DB::transaction(function () use ($user, $plan, $coupon) {
+        return DB::transaction(function () use ($user, $plan, $coupon,$currency) {
 
-            $originalAmount = $plan->price;
+            $originalAmount = $plan->priceFor($currency);
             $discount       = $coupon
-                ? $this->couponService->calculateDiscount($coupon, $originalAmount)
+                ? $this->couponService->calculateDiscount($coupon, $originalAmount , $currency)
                 : 0;
             $finalAmount    = max(0, $originalAmount - $discount);
 
@@ -43,24 +45,26 @@ class SubscriptionService
                 'payment_status'  => 'pending',
             ]);
 
-            return Payment::create([
-                'user_id'              => $user->id,
-                'user_subscription_id' => $subscription->id,
-                'original_amount'      => $originalAmount,
-                'discount_amount'      => $discount,
-                'amount'               => $finalAmount,
-                'coupon_id'            => $coupon?->id,
-                'currency'             => 'EGP',
-                'type'                 => 'subscription',
-                'status'               => 'pending',
-                'payment_gateway'      => 'paymob',
-            ]);
+            return $this->createPendingPayment($subscription, $user, $originalAmount, $discount, $finalAmount, $coupon, $currency);
+
+            // return Payment::create([
+            //     'user_id'              => $user->id,
+            //     'user_subscription_id' => $subscription->id,
+            //     'original_amount'      => $originalAmount,
+            //     'discount_amount'      => $discount,
+            //     'amount'               => $finalAmount,
+            //     'coupon_id'            => $coupon?->id,
+            //     'currency'             => 'EGP',
+            //     'type'                 => 'subscription',
+            //     'status'               => 'pending',
+            //     'payment_gateway'      => 'paymob',
+            // ]);
         });
     }
 
-    public function renew(User $user, SubscriptionPlan $plan, ?Coupon $coupon = null): Payment
+    public function renew(User $user, SubscriptionPlan $plan, ?Coupon $coupon = null , string $currency = 'EGP'): Payment
     {
-        return DB::transaction(function () use ($user, $plan, $coupon) {
+        return DB::transaction(function () use ($user, $plan, $coupon , $currency){
 
             $current = UserSubscription::query()
                 ->where('user_id', $user->id)
@@ -73,9 +77,9 @@ class SubscriptionService
                 ? $current->end_at
                 : now();
 
-            $originalAmount = $plan->price;
+            $originalAmount = $plan->priceFor($currency);
             $discount       = $coupon
-                ? $this->couponService->calculateDiscount($coupon, $originalAmount)
+                ? $this->couponService->calculateDiscount($coupon, $originalAmount,$currency)
                 : 0;
             $finalAmount    = max(0, $originalAmount - $discount);
 
@@ -92,18 +96,20 @@ class SubscriptionService
                 'payment_status'  => 'pending',
             ]);
 
-            return Payment::create([
-                'user_id'              => $user->id,
-                'user_subscription_id' => $subscription->id,
-                'original_amount'      => $originalAmount,
-                'discount_amount'      => $discount,
-                'amount'               => $finalAmount,
-                'coupon_id'            => $coupon?->id,
-                'currency'             => 'EGP',
-                'type'                 => 'subscription',
-                'status'               => 'pending',
-                'payment_gateway'      => 'paymob',
-            ]);
+            return $this->createPendingPayment($subscription, $user, $originalAmount, $discount, $finalAmount, $coupon, $currency);
+
+            // return Payment::create([
+            //     'user_id'              => $user->id,
+            //     'user_subscription_id' => $subscription->id,
+            //     'original_amount'      => $originalAmount,
+            //     'discount_amount'      => $discount,
+            //     'amount'               => $finalAmount,
+            //     'coupon_id'            => $coupon?->id,
+            //     'currency'             => 'EGP',
+            //     'type'                 => 'subscription',
+            //     'status'               => 'pending',
+            //     'payment_gateway'      => 'paymob',
+            // ]);
         });
     }
 
@@ -185,6 +191,22 @@ class SubscriptionService
             $payment->refresh();
         }
 
+        if (is_null($payment->gateway_amount)) {
+            $gatewayCurrency = $payment->gateway_currency ?? 'EGP';
+            $gatewayAmount   = $payment->amount;
+
+            if ($payment->currency === 'USD' && $gatewayCurrency === 'EGP' && !config('paymob.multi_currency_supported')) {
+                $rate          = $this->exchangeRateService->usdToEgpRate();
+                $gatewayAmount = round($payment->amount * $rate, 2);
+            }
+
+            $payment->update([
+                'gateway_amount'   => $gatewayAmount,
+                'gateway_currency' => $gatewayCurrency,
+            ]);
+            $payment->refresh();
+        }
+
         if ($payment->paymob_order_id) {
             try {
                 return $this->resumePaymobPayment($payment, $request, $method);
@@ -197,14 +219,14 @@ class SubscriptionService
             }
         }
 
-        $amountCents = (int) ($payment->amount * 100);
+        $amountCents = (int) round($payment->gateway_amount * 100);
         $billingData = $this->buildBillingData($request, $payment);
 
         if ($method === 'card') {
-            $result = $this->paymob->createCardPayment($amountCents, $billingData, "PAY-{$payment->id}-" . now()->timestamp);
+            $result = $this->paymob->createCardPayment($amountCents, $billingData, "PAY-{$payment->id}-" . now()->timestamp, $payment->gateway_currency);
             $url    = $result['iframe_url'];
         } else {
-            $result = $this->paymob->createWalletPayment($amountCents, $billingData, "PAY-{$payment->id}-" . now()->timestamp, $request->input('phone', ''));
+            $result = $this->paymob->createWalletPayment($amountCents, $billingData, "PAY-{$payment->id}-" . now()->timestamp, $request->input('phone', ''),$payment->gateway_currency);
             $url    = $result['redirect_url'];
         }
 
@@ -215,14 +237,15 @@ class SubscriptionService
 
     private function resumePaymobPayment(Payment $payment, Request $request, string $method): string
     {
-        $amountCents = (int) ($payment->amount * 100);
+        $amountCents = (int) round($payment->gateway_amount * 100);
         $billingData = $this->buildBillingData($request, $payment);
 
         $paymentKey = $this->paymob->getPaymentKeyForExistingOrder(
             $amountCents,
             (int) $payment->paymob_order_id,
             $billingData,
-            $method
+            $method,
+            $payment->gateway_currency
         );
 
         if ($method === 'card') {
@@ -247,7 +270,7 @@ class SubscriptionService
         ];
     }
 
-    public function validateCouponForSubscription(string $code, float $amount, User $user): Coupon
+    public function validateCouponForSubscription(string $code, float $amount, User $user,string $currency = 'EGP'): Coupon
     {
         $coupon = Coupon::where('code', $code)->where('status', 'active')->first();
 
@@ -277,10 +300,9 @@ class SubscriptionService
             ]);
         }
 
-        if ($coupon->min_order_amount && $amount < $coupon->min_order_amount) {
-            throw ValidationException::withMessages([
-                'coupon_code' => "Minimum amount is {$coupon->min_order_amount}.",
-            ]);
+        $minOrderAmount = $coupon->minOrderAmountFor($currency);
+        if ($minOrderAmount && $amount < $minOrderAmount) {
+            throw ValidationException::withMessages(['coupon_code' => "Minimum amount is {$minOrderAmount} {$currency}."]);
         }
 
         if ($coupon->coupon_usages()->where('user_id', $user->id)->exists()) {
@@ -292,9 +314,9 @@ class SubscriptionService
         return $coupon;
     }
 
-    public function calculateCouponDiscount(Coupon $coupon, float $amount): float
+    public function calculateCouponDiscount(Coupon $coupon, float $amount, string $currency = 'EGP'): float
     {
-        return $this->couponService->calculateDiscount($coupon, $amount);
+        return $this->couponService->calculateDiscount($coupon, $amount, $currency);
     }
 
     public function cancelPending(User $user, int $subscriptionId): void
@@ -307,5 +329,36 @@ class SubscriptionService
             $subscription->delete();
         });
     }
-    
+
+
+
+    private function createPendingPayment(
+        UserSubscription $subscription, User $user, float $originalAmount,
+        float $discount, float $finalAmount, ?Coupon $coupon, string $currency
+    ): Payment {
+        $gatewayCurrency = 'EGP';
+        $gatewayAmount   = $finalAmount;
+        $exchangeRate    = null;
+
+        if ($currency === 'USD' && !config('paymob.multi_currency_supported')) {
+            $exchangeRate  = $this->exchangeRateService->usdToEgpRate();
+            $gatewayAmount = round($finalAmount * $exchangeRate, 2);
+        } elseif ($currency === 'USD') {
+            $gatewayCurrency = 'USD';
+        }
+
+        return Payment::create([
+            'user_id'              => $user->id,
+            'user_subscription_id' => $subscription->id,
+            'amount'               => $finalAmount,
+            'currency'             => $currency,
+            'gateway_amount'       => $gatewayAmount,
+            'gateway_currency'     => $gatewayCurrency,
+            'exchange_rate_used'   => $exchangeRate,
+            'type'                 => 'subscription',
+            'status'               => 'pending',
+            'payment_gateway'      => 'paymob',
+        ]);
+    }
+
 }

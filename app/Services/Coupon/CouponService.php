@@ -10,12 +10,9 @@ use Carbon\Carbon;
 
 class CouponService
 {
-    public function validate(string $code, float $orderTotal, User $user)
+    public function validate(string $code, float $orderTotal, User $user , string $currency = 'EGP')
     {
         $coupon = Coupon::where('code', $code)->where('status', 'active')->first();
-
-
-
 
         $cart = Cart::forSession(null , $user->id) ;
         if(! $cart->exists())
@@ -24,7 +21,7 @@ class CouponService
                 'cart' => 'Cart is empty'
             ]);
         }
-        
+
         if (!$coupon) {
             throw ValidationException::withMessages([
                 'coupon' => 'Invalid or inactive coupon.',
@@ -51,9 +48,10 @@ class CouponService
             ]);
         }
 
-        if ($coupon->min_order_amount && $orderTotal < $coupon->min_order_amount) {
+        $minOrderAmount = $coupon->minOrderAmountFor($currency);
+        if ($minOrderAmount && $orderTotal < $minOrderAmount) {
             throw ValidationException::withMessages([
-                'coupon' => "Minimum order amount is {$coupon->min_order_amount}.",
+                'coupon' => "Minimum order amount is {$minOrderAmount} {$currency}.",
             ]);
         }
 
@@ -69,12 +67,12 @@ class CouponService
     }
 
 
-    public function calculateDiscount(Coupon $coupon, float $orderTotal): float
+    public function calculateDiscount(Coupon $coupon, float $orderTotal , string $currency = 'EGP'): float
     {
         if ($coupon->discount_type === 'percentage') {
-            $discount = ($coupon->discount_value / 100) * $orderTotal;
+            $discount = ($coupon->discountValueFor($currency) / 100) * $orderTotal;
         } else {
-            $discount = $coupon->discount_value;
+            $discount = $coupon->discountValueFor($currency);
         }
 
         return min($discount, $orderTotal);

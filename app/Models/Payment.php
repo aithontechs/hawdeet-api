@@ -13,6 +13,9 @@ class Payment extends Model
         'user_subscription_id',
         'amount',
         'currency',
+        'gateway_currency',
+        'gateway_amount',
+        'exchange_rate_used',
         'type',
         'status',
         'payment_gateway',
@@ -24,10 +27,12 @@ class Payment extends Model
     ];
 
     protected $casts = [
-        'amount'           => 'decimal:2',
-        'gateway_response' => 'array',
-        'paid_at'          => 'datetime',
-        'refunded_at'      => 'datetime',
+        'amount'             => 'decimal:2',
+        'gateway_amount'     => 'decimal:2',
+        'exchange_rate_used' => 'decimal:6',
+        'gateway_response'   => 'array',
+        'paid_at'            => 'datetime',
+        'refunded_at'        => 'datetime',
     ];
 
     public function user()

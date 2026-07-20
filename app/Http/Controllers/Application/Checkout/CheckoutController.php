@@ -7,6 +7,7 @@ use App\Http\Requests\Application\Checkout\CheckoutRequest;
 use App\Models\Order;
 use App\Services\Cart\CartService;
 use App\Services\Coupon\CouponService;
+use App\Services\Currency\CurrencyResolver;
 use App\Services\Purchase\BookAccessGrantService;
 use App\Services\Purchase\BookPurchaseService;
 use App\Services\Shipping\ShippingService;
@@ -18,11 +19,12 @@ class CheckoutController extends Controller
     use ResponseApi;
 
     public function __construct(
-        private CartService            $cartService,
+        private CartService $cartService,
         private BookPurchaseService    $purchaseService,
         private BookAccessGrantService $grantService,
-        private CouponService          $couponService,
-        private ShippingService        $shippingService,
+        private CouponService  $couponService,
+        private ShippingService $shippingService,
+        private CurrencyResolver  $currencyResolver,
     ) {}
 
     public function shippingZones()
@@ -42,14 +44,15 @@ class CheckoutController extends Controller
 
         $user     = auth('user-api')->user();
         $cookieId = $this->cartService->getOrCreateCookieId($request);
-        $items    = $this->cartService->getItems($cookieId, $user);
+        $currency = $this->currencyResolver->resolve($request);
+        $items   = $this->cartService->getItems($cookieId, $user, $currency);
 
         if ($items->isEmpty()) {
             return $this->errorApi('Cart is empty', 422);
         }
 
         $hasPhysical  = $items->contains(fn ($i) => $i['item_type'] === 'physical');
-        $subtotal     = $this->cartService->getTotal($cookieId, $user);
+        $subtotal     = $this->cartService->getTotal($cookieId, $user , $currency);
         $shippingCost = 0;
         $shippingZone = null;
         $usedAddress  = null;
@@ -76,18 +79,21 @@ class CheckoutController extends Controller
                     }
             }
 
-            $shippingCost = $shippingZone?->cost ?? 0;
+            $shippingCost = $currency === 'USD'
+                ? (float) ($shippingZone?->cost_usd ?? $shippingZone?->cost ?? 0)
+                : (float) ($shippingZone?->cost ?? 0);
         }
 
         $discount      = 0;
         $couponPreview = null;
 
         if ($request->filled('coupon_code')) {
-            $coupon        = $this->couponService->validate($request->coupon_code, $subtotal, $user);
-            $discount      = $this->couponService->calculateDiscount($coupon, $subtotal);
+            $coupon        = $this->couponService->validate($request->coupon_code, $subtotal, $user , $currency);
+            $discount      = $this->couponService->calculateDiscount($coupon, $subtotal , $currency);
             $couponPreview = [
                 'code'     => $coupon->code,
                 'discount' => $discount,
+                'currency' => $currency,
             ];
         }
 
@@ -96,6 +102,7 @@ class CheckoutController extends Controller
         return $this->successApi([
             'items'        => $items,
             'subtotal'     => $subtotal,
+            'currency'     => $currency,
             'shipping'     => [
                 'cost'         => $shippingCost,
                 'zone'         => $shippingZone ? [
@@ -117,7 +124,8 @@ class CheckoutController extends Controller
     {
         $user     = auth('user-api')->user();
         $cookieId = $this->cartService->getOrCreateCookieId($request);
-        $items    = $this->cartService->getItems($cookieId, $user);
+        $currency = $this->currencyResolver->resolve($request);
+        $items    = $this->cartService->getItems($cookieId, $user , $currency);
 
         if ($items->isEmpty()) {
             return $this->errorApi('Cart is empty', 422);
@@ -137,23 +145,23 @@ class CheckoutController extends Controller
 
             abort_unless($address->user_id === $user->id, 403, 'Unauthorized address.');
 
-            $shippingCost      = $address->zone->cost;
+            $shippingCost = $currency === 'USD' ? (float) ($address->zone->cost_usd ?? $address->zone->cost) : (float) $address->zone->cost;
             $shippingAddressId = $address->id;
         }
 
-        $subtotal = $this->cartService->getTotal($cookieId, $user);
+        $subtotal = $this->cartService->getTotal($cookieId, $user , $currency);
         $discount = 0;
         $coupon   = null;
 
         if ($request->filled('coupon_code')) {
-            $coupon   = $this->couponService->validate($request->coupon_code, $subtotal, $user);
-            $discount = $this->couponService->calculateDiscount($coupon, $subtotal);
+            $coupon   = $this->couponService->validate($request->coupon_code, $subtotal, $user , $currency);
+            $discount = $this->couponService->calculateDiscount($coupon, $subtotal , $currency);
         }
 
         $total = $subtotal + $shippingCost - $discount;
 
         $idempotencyKey = $this->purchaseService->buildIdempotencyKey(
-            $user->id, $items, $subtotal, $shippingCost, $discount
+            $user->id, $items, $subtotal, $shippingCost, $discount , $currency
         );
 
         $existingOrder = Order::where('idempotency_key', $idempotencyKey)
@@ -167,6 +175,7 @@ class CheckoutController extends Controller
 
             $existingPayment = $existingOrder->payments()
                 ->where('status', 'pending')
+                ->where('currency', $currency)
                 ->latest()
                 ->first();
 
@@ -200,6 +209,7 @@ class CheckoutController extends Controller
             discount:          $discount,
             total:             $total,
             paymentMethod:     $request->payment_method,
+            currency:          $currency,
             shippingAddressId: $shippingAddressId,
             idempotencyKey:    $idempotencyKey,
         );
@@ -212,14 +222,15 @@ class CheckoutController extends Controller
         $paymentUrl = $this->purchaseService->initiatePaymobPayment($payment, $request, $request->payment_method);
 
         return $this->successApi([
-            'order_number' => $order->order_number,
-            'subtotal'     => $subtotal,
-            'shipping'     => $shippingCost,
-            'discount'     => $discount,
-            'total'        => $total,
-            'payment_url'  => $paymentUrl,
-            'status'       => 'pending',
-            'resumed'      => false,
+            'order_number'=> $order->order_number,
+            'subtotal'    => $subtotal,
+            'shipping'    => $shippingCost,
+            'discount'    => $discount,
+            'total'       => $total,
+            'currency'    => $currency,
+            'payment_url' => $paymentUrl,
+            'status'      => 'pending',
+            'resumed'     => false,
         ], 'Proceed to payment');
     }
 }
