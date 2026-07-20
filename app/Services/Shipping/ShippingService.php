@@ -103,6 +103,8 @@ class ShippingService
     public function clearCache(): void
     {
         Cache::forget(self::CACHE_KEY);
+        Cache::forget(self::CACHE_KEY_Dash);
+
     }
 
     public function getZonesDashboard()
