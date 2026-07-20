@@ -21,7 +21,7 @@ class ShippingZoneController extends Controller
     public function index()
     {
         return $this->successApi(
-            $this->shippingService->getZones(),
+            $this->shippingService->getZonesDashboard(),
             'Shipping zones fetched successfully'
         );
     }
@@ -44,7 +44,6 @@ class ShippingZoneController extends Controller
     public function show($id)
     {
         $zone = $this->shippingService->find($id);
-
         return $this->successApi($zone, 'Shipping zone fetched successfully');
     }
 

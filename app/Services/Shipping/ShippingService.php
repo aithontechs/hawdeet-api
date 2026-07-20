@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 class ShippingService
 {
     const CACHE_KEY = 'shipping_zones';
+    const CACHE_KEY_Dash = 'shipping_zones_dash';
     const CACHE_TTL = 60 * 24;
 
     public function getZones()
@@ -103,4 +104,14 @@ class ShippingService
     {
         Cache::forget(self::CACHE_KEY);
     }
+
+    public function getZonesDashboard()
+    {
+        return Cache::remember(self::CACHE_KEY_Dash, self::CACHE_TTL, function () {
+            return ShippingZone::orderByDesc('is_default')
+                ->orderBy('name')
+                ->get(['id', 'name', 'cost' , 'cost_usd', 'days_min', 'days_max' , 'is_active' , 'is_default']);
+        });
+    }
+
 }
