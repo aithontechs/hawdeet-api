@@ -5,6 +5,7 @@ namespace App\Http\Requests\Dashboard\User;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class UserRequest extends FormRequest
 {
@@ -24,7 +25,7 @@ class UserRequest extends FormRequest
                 'email',
                 Rule::unique('users', 'email')->ignore($userId),
             ],
-            'phone' => 'nullable|regex:/^01[0125][0-9]{8}$/|unique:users,phone',
+            'phone' => [ $this->isMethod('post') ? 'required' : 'sometimes' , (new Phone())->international(), 'unique:users,phone'],
             'password' => [
                 $this->isMethod('post') ? 'required' : 'sometimes',
                 'max:25',
@@ -43,7 +44,7 @@ class UserRequest extends FormRequest
         public function messages()
         {
             return [
-                'phone.regex' => 'رقم الهاتف يجب أن يكون رقم محمول مصري صحيح.',
+                'phone.phone' => 'رقم الهاتف غير صحيح. أدخل الرقم بصيغة دولية تبدأ بـ + وكود الدولة (مثال: +201012345678).',
                 'birth_date.before_or_equal' => 'يجب ألا يقل العمر عن 8 سنوات.',
                 'password.min' => 'كلمة المرور يجب أن تحتوي على 12 أحرف على الأقل.',
                 'password.max' => 'كلمة المرور يجب ألا تزيد عن 50 حرفًا.',

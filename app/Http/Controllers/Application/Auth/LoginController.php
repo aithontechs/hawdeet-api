@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Application\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Auth\PhoneNormalizer;
 use App\Services\Cart\CartService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
@@ -12,7 +13,7 @@ class LoginController extends Controller
 {
     use ResponseApi ;
 
-    public function __construct(private CartService $cartService) {}
+    public function __construct(private CartService $cartService , private PhoneNormalizer $phoneNormalizer,) {}
 
     public function login(Request $request)
     {
@@ -21,10 +22,13 @@ class LoginController extends Controller
             'password' => 'required|min:8|max:25'
         ]);
 
-        $loginField = filter_var($request->login , FILTER_VALIDATE_EMAIL) ? 'email' :  'phone' ;
+        $isEmail = filter_var($request->login, FILTER_VALIDATE_EMAIL);
+        $loginField = $isEmail ? 'email' : 'phone';
+
+        $loginValue = $isEmail ? $request->login : $this->phoneNormalizer->normalize($request->login);
 
         $credentials = [
-            $loginField => $request->login,
+            $loginField => $loginValue,
             'password' => $request->password,
         ];
         if (!$token = auth('user-api')->attempt($credentials)) {

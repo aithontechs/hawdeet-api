@@ -55,7 +55,11 @@ class CouponService
             ]);
         }
 
-        $alreadyUsed = $coupon->coupon_usages()->where('user_id', $user->id)->exists();
+        $alreadyUsed = $coupon->coupon_usages()->where('user_id', $user->id)
+                                ->whereHas('order', function ($q) {
+                                    $q->where('payment_status', 'paid');
+                                })
+                                ->exists();
 
         if ($alreadyUsed) {
             throw ValidationException::withMessages([

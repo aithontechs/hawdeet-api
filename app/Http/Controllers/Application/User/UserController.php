@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Application\User\UserUpdateRequest;
 use App\Http\Resources\ProfileResource;
 use App\Models\User ;
+use App\Services\Auth\PhoneNormalizer;
 use App\Services\Book\BookReadingProgressService;
+use App\Services\Currency\PhoneCurrencyService;
 use App\Services\Storage\StorageService;
 use App\Services\User\ProfileService;
 use App\Traits\ResponseApi;
@@ -16,7 +18,8 @@ class UserController extends Controller
     use ResponseApi ;
 
     public function __construct(private readonly StorageService $storageService , private readonly BookReadingProgressService $progressService ,
-                                private readonly ProfileService $profileService)
+                                private readonly ProfileService $profileService , private readonly PhoneCurrencyService $phoneCurrencyService,
+                                private readonly PhoneNormalizer $phoneNormalizer)
     {
 
     }
@@ -69,11 +72,11 @@ class UserController extends Controller
         $data = $request->validated();
         $oldAvatar = $user->getRawOriginal('avatar_url');
         if ($request->hasFile('avatar_url')) {
-            $data['avatar_url'] = $this->storageService->replace(
-                $request->file('avatar_url'),
-                $oldAvatar,
-                'avatar/users'
-            );
+            $data['avatar_url'] = $this->storageService->replace($request->file('avatar_url'),$oldAvatar,'avatar/users');
+        }
+        if (isset($data['phone'])) {
+            $data['phone'] = $this->phoneNormalizer->normalize($data['phone']);
+            $data['preferred_currency'] = $this->phoneCurrencyService->resolveFromPhoneOrDefault($data['phone'] ?? null);
         }
         $user->update($data);
         $this->profileService->clearCache($user->id);
@@ -93,7 +96,10 @@ class UserController extends Controller
                 'avatar/users'
             );
         }
-
+        if (isset($data['phone'])) {
+            $data['phone'] = $this->phoneNormalizer->normalize($data['phone']);
+            $data['preferred_currency'] = $this->phoneCurrencyService->resolveFromPhoneOrDefault($data['phone'] ?? null);
+        }
         $user->update($data);
 
         $this->profileService->clearCache($user->id);

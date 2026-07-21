@@ -8,6 +8,7 @@ use App\Models\Admin;
 use App\Models\User;
 use App\Notifications\NewUserRegistered;
 use App\Services\Cart\CartService;
+use App\Services\Currency\PhoneCurrencyService;
 use App\Services\Storage\StorageService;
 use App\Traits\ResponseApi;
 use Illuminate\Support\Facades\Notification;
@@ -17,7 +18,8 @@ class RegisterController extends Controller
     use ResponseApi ;
 
     public function __construct(
-        protected StorageService $storageService, protected CartService $cartService
+        protected StorageService $storageService, protected CartService $cartService,
+        protected PhoneCurrencyService $phoneCurrencyService,
     ) {}
 
     public function store(RegisterRequest $request)
@@ -30,6 +32,10 @@ class RegisterController extends Controller
                 folder: 'avatar/users'
             );
         }
+        
+        $data['preferred_currency'] = $this->phoneCurrencyService->resolveFromPhoneOrDefault(
+            $data['phone'] ?? null
+        );
         $user = User::create($data) ;
 
         // $guestToken = $request->header('X-Guest-Token') ?? $request->input('guest_token');

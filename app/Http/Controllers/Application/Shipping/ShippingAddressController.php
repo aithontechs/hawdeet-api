@@ -8,6 +8,7 @@ use App\Services\Currency\CurrencyResolver;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class ShippingAddressController extends Controller
 {
@@ -72,7 +73,7 @@ class ShippingAddressController extends Controller
         $data = $request->validate([
             'shipping_zone_id' => 'sometimes|exists:shipping_zones,id',
             'recipient_name'   => 'sometimes|string|max:255',
-            'phone'            => 'sometimes|digits:11',
+            'phone'            => ['sometimes', (new Phone())->international(), 'unique:users,phone'],
             'address_line'     => 'sometimes|string|max:500',
             'city'             => 'sometimes|string|max:100',
             'is_default'       => 'sometimes|boolean',
