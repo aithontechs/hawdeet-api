@@ -141,7 +141,7 @@ class ShippingService
         return Cache::remember(self::CACHE_KEY_Dash, self::CACHE_TTL, function () {
             return ShippingZone::orderByDesc('is_default')
                 ->orderBy('name')
-                ->get(['id', 'name', 'cost' , 'cost_usd', 'days_min', 'days_max' , 'is_active' , 'is_default']);
+                ->get(['id', 'name', 'cost' , 'cost_usd' , 'country' , 'days_min', 'days_max' , 'is_active' , 'is_default']);
         });
     }
 
