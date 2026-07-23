@@ -11,6 +11,7 @@ class ShippingZone extends Model
 
     protected $fillable = [
         'name',
+        'country',
         'cost',
         'cost_usd',
         'days_min',

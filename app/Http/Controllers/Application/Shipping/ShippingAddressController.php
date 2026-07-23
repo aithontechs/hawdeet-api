@@ -17,13 +17,26 @@ class ShippingAddressController extends Controller
 
     public function __construct(private CurrencyResolver $currencyResolver) {}
 
-    public function index()
+    public function index(Request $request)
     {
+        $currency = $this->currencyResolver->resolve($request);
+
         $addresses = auth('user-api')->user()
-                        ->shippingAddresses()
-                        ->with('zone:id,name,cost,days_min,days_max')
-                        ->latest()
-                        ->get();
+            ->shippingAddresses()
+            ->with('zone:id,name,cost,cost_usd,days_min,days_max')
+            ->latest()
+            ->get()
+            ->each(function ($address) use ($currency) {
+                if ($address->zone) {
+                    $address->zone->cost = $currency === 'USD'
+                        ? $address->zone->cost_usd
+                        : $address->zone->cost;
+
+                    unset($address->zone->cost_usd);
+
+                    $address->zone->currency = $currency;
+                }
+            });
 
         return $this->successApi($addresses, 'Addresses fetched successfully');
     }
@@ -33,7 +46,7 @@ class ShippingAddressController extends Controller
         $data = $request->validate([
             'shipping_zone_id' => 'required|exists:shipping_zones,id',
             'recipient_name'   => 'nullable|string|max:255',
-            'phone'            => 'required|digits:11',
+            'phone'            => ['required' , (new Phone())->international()],
             'address_line'     => 'required|string|max:500',
             'city'             => 'required|string|max:100',
             'is_default'       => 'nullable|boolean',
@@ -73,7 +86,7 @@ class ShippingAddressController extends Controller
         $data = $request->validate([
             'shipping_zone_id' => 'sometimes|exists:shipping_zones,id',
             'recipient_name'   => 'sometimes|string|max:255',
-            'phone'            => ['sometimes', (new Phone())->international(), 'unique:users,phone'],
+            'phone'            => ['sometimes', (new Phone())->international()],
             'address_line'     => 'sometimes|string|max:500',
             'city'             => 'sometimes|string|max:100',
             'is_default'       => 'sometimes|boolean',

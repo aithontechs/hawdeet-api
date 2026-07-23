@@ -7,6 +7,7 @@ use App\Models\ShippingZone;
 use App\Services\Shipping\ShippingService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ShippingZoneController extends Controller
 {
@@ -29,7 +30,8 @@ class ShippingZoneController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'name' => 'required|string',
+            'name' => 'required|string|unique:shipping_zones,name',
+            'country' => 'required|boolean',
             'cost' => 'required|numeric|min:0',
             'cost_usd' => 'required|numeric|min:0',
             'days_min' => 'required|integer|min:1',
@@ -50,7 +52,8 @@ class ShippingZoneController extends Controller
     public function update(Request $request, ShippingZone $shipping_zone)
     {
         $data = $request->validate([
-            'name' => 'sometimes|string',
+            'name' => ['sometimes' , 'string' ,Rule::unique('shipping_zones' , 'name')->ignore($shipping_zone)],
+            'country' => 'sometimes|boolean',
             'cost' => 'sometimes|numeric|min:0',
             'cost_usd' => 'sometimes|numeric|min:0',
             'days_min' => 'sometimes|integer|min:1',

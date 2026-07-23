@@ -9,6 +9,7 @@ use App\Models\User ;
 use App\Services\Auth\PhoneNormalizer;
 use App\Services\Book\BookReadingProgressService;
 use App\Services\Currency\PhoneCurrencyService;
+use App\Services\Shipping\ShippingService;
 use App\Services\Storage\StorageService;
 use App\Services\User\ProfileService;
 use App\Traits\ResponseApi;
@@ -19,7 +20,7 @@ class UserController extends Controller
 
     public function __construct(private readonly StorageService $storageService , private readonly BookReadingProgressService $progressService ,
                                 private readonly ProfileService $profileService , private readonly PhoneCurrencyService $phoneCurrencyService,
-                                private readonly PhoneNormalizer $phoneNormalizer)
+                                private readonly PhoneNormalizer $phoneNormalizer , private readonly ShippingService $shippingService)
     {
 
     }
@@ -80,6 +81,7 @@ class UserController extends Controller
         }
         $user->update($data);
         $this->profileService->clearCache($user->id);
+        $this->shippingService->clearCache() ;
         return $this->successApi($user, 'Profile updated successfully');
     }
 
@@ -103,6 +105,7 @@ class UserController extends Controller
         $user->update($data);
 
         $this->profileService->clearCache($user->id);
+        $this->shippingService->clearCache() ;
 
         return $this->successApi($user, 'Profile updated successfully');
     }

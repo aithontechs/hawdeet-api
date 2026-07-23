@@ -3,6 +3,8 @@
 namespace App\Services\Shipping;
 
 use App\Models\ShippingZone;
+use App\Services\Currency\CurrencyResolver;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -12,24 +14,48 @@ class ShippingService
     const CACHE_KEY_Dash = 'shipping_zones_dash';
     const CACHE_TTL = 60 * 24;
 
-    public function getZones()
+    public function __construct(private readonly CurrencyResolver $currencyResolver){}
+
+    public function getZones(Request $request)
     {
-        return Cache::remember(self::CACHE_KEY, self::CACHE_TTL, function () {
-            return ShippingZone::where('is_active', true)
-                ->orderByDesc('is_default')
-                ->orderBy('name')
-                ->get(['id', 'name', 'cost' , 'cost_usd', 'days_min', 'days_max']);
-        });
+        $currency = $this->currencyResolver->resolve($request);
+
+        $country = $currency === 'USD' ? 'International' : 'EG';
+
+        return Cache::remember(
+            self::CACHE_KEY . '_' . $currency,
+            self::CACHE_TTL,
+            function () use ($currency) {
+                return ShippingZone::query()
+                    ->where('is_active', true)
+                    ->where('country', $currency === 'USD' ? 'International' : 'EG')
+                    ->orderByDesc('is_default')
+                    ->orderBy('name')
+                    ->select([
+                        'id',
+                        'name',
+                        'days_min',
+                        'days_max',
+                    ])
+                    ->selectRaw($currency === 'USD' ? 'cost_usd as cost' : 'cost')
+                    ->get()
+                    ->map(function ($zone) use ($currency) {
+                        $zone->currency = $currency;
+
+                        return $zone;
+                    });
+            }
+        );
     }
 
-    public function getZone(int $zoneId)
+    public function getZone(Request $request , int $zoneId)
     {
-        return $this->getZones()->firstWhere('id', $zoneId);
+        return $this->getZones($request)->firstWhere('id', $zoneId);
     }
 
-    public function getDefaultZone()
+    public function getDefaultZone(Request $request)
     {
-        return $this->getZones()->firstWhere('is_default', true);
+        return $this->getZones($request)->firstWhere('is_default', true);
     }
 
     public function setDefault(ShippingZone $zone)
@@ -55,7 +81,7 @@ class ShippingService
                     'is_default' => false
                 ]);
             }
-
+            $data['country'] = ! $data['country'] ? 'International' : 'EG' ;
             $zone = ShippingZone::create($data);
             $this->clearCache();
             return $zone;
@@ -71,6 +97,9 @@ class ShippingService
                 ShippingZone::query()->update([
                     'is_default' => false
                 ]);
+            }
+            if(isset($data['country'])){
+                $data['country'] = ! $data['country'] ? 'International' : 'EG' ;
             }
             $zone->update($data);
             $this->clearCache();

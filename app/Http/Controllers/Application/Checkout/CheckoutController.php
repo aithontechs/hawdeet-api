@@ -27,10 +27,10 @@ class CheckoutController extends Controller
         private CurrencyResolver  $currencyResolver,
     ) {}
 
-    public function shippingZones()
+    public function shippingZones(Request $request)
     {
         return $this->successApi(
-            $this->shippingService->getZones(),
+            $this->shippingService->getZones($request),
             'Shipping zones fetched successfully'
         );
     }
@@ -59,7 +59,7 @@ class CheckoutController extends Controller
 
         if ($hasPhysical) {
             if ($request->filled('shipping_zone_id')) {
-                $shippingZone = $this->shippingService->getZone($request->shipping_zone_id);
+                $shippingZone = $this->shippingService->getZone($request , $request->shipping_zone_id);
             } else {
                 $defaultAddress = $user->shippingAddresses()
                     ->with('zone')
@@ -75,7 +75,7 @@ class CheckoutController extends Controller
                             'city'           => $defaultAddress->city,
                         ];
                     } else {
-                        $shippingZone = $this->shippingService->getDefaultZone();
+                        $shippingZone = $this->shippingService->getDefaultZone($request);
                     }
             }
 
