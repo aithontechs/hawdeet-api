@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Application\Checkout ;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class CheckoutRequest extends FormRequest
 {
@@ -20,7 +21,7 @@ class CheckoutRequest extends FormRequest
             'phone' => [
                 'required_if:payment_method,wallet',
                 'nullable',
-                'digits:11',
+                (new Phone())->international()
             ],
         ];
     }
