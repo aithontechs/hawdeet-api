@@ -44,17 +44,19 @@ class OrdersDetailsSheet implements FromQuery, WithTitle, WithHeadings, WithMapp
             'العميل',
             'البريد الإلكتروني',
             'عدد العناصر',
-            'الإجمالي الفرعي (EGP)',
-            'الخصم (EGP)',
-            'تكلفة الشحن (EGP)',
-            'الإجمالي (EGP)',
+            'العملة',
+            'الإجمالي الفرعي',
+            'الخصم',
+            'تكلفة الشحن',
+            'الإجمالي',
+            'المبلغ المحصّل فعلياً (بوابة الدفع)',
+            'عملة بوابة الدفع',
             'طريقة الدفع',
             'حالة الدفع',
             'نوع الطلب',
             'تاريخ الدفع',
             'تاريخ الطلب',
             'المنتجات',
-
         ];
     }
 
@@ -77,23 +79,27 @@ class OrdersDetailsSheet implements FromQuery, WithTitle, WithHeadings, WithMapp
             ->filter()
             ->implode(' | ');
 
+        $payment = $order->payments->first();
+
         return [
             $this->rowNumber++,
             $order->order_number,
-            $order->user->name        ?? 'لايوجد',
-            $order->user->email       ?? 'لايوجد',
+            $order->user->name  ?? 'لايوجد',
+            $order->user->email ?? 'لايوجد',
             $order->items->count(),
+            $order->currency ?? 'EGP',
             $order->subtotal,
-            $order->discount          ?? 0,
-            $order->shipping_cost     ?? 0,
+            $order->discount      ?? 0,
+            $order->shipping_cost ?? 0,
             $order->total,
+            $payment->gateway_amount   ?? '-',
+            $payment->gateway_currency ?? '-',
             $paymentMethodMap[$order->payment_method] ?? ($order->payment_method ?? 'لايوجد'),
             $paymentStatusMap[$order->payment_status] ?? ($order->payment_status ?? 'لايوجد'),
             $order->has_physical ? 'ورقي + رقمي' : 'رقمي',
-            $order->paid_at?->format('Y-m-d H:i')    ?? 'لايوجد',
+            $order->paid_at?->format('Y-m-d H:i') ?? 'لايوجد',
             $order->created_at->format('Y-m-d H:i'),
             $itemNames ?: 'لايوجد',
-
         ];
     }
 
@@ -104,6 +110,7 @@ class OrdersDetailsSheet implements FromQuery, WithTitle, WithHeadings, WithMapp
             'H' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2,
             'I' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2,
             'J' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2,
+            'K' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2,
         ];
     }
 
@@ -170,14 +177,23 @@ class OrdersDetailsSheet implements FromQuery, WithTitle, WithHeadings, WithMapp
                 ]);
 
                 for ($row = 2; $row <= $lastRow; $row++) {
-                    $status = $sheet->getCell("L{$row}")->getValue();
+                    $status = $sheet->getCell("N{$row}")->getValue();
                     $color  = match ($status) {
-                        'مدفوع' => 'FFD1FAE5', // green
-                        'معلق'  => 'FFFEF3C7', // yellow
-                        'فاشل'  => 'FFFEE2E2', // red
+                        'مدفوع' => 'FFD1FAE5',
+                        'معلق'  => 'FFFEF3C7',
+                        'فاشل'  => 'FFFEE2E2',
                         default => 'FFFFFFFF',
                     };
-                    $sheet->getStyle("L{$row}")->applyFromArray([
+                    $sheet->getStyle("N{$row}")->applyFromArray([
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $color]],
+                        'font' => ['bold' => true],
+                    ]);
+                }
+
+                for ($row = 2; $row <= $lastRow; $row++) {
+                    $currency = $sheet->getCell("F{$row}")->getValue();
+                    $color = $currency === 'USD' ? 'FFDDEBFF' : 'FFFFF3D6';
+                    $sheet->getStyle("F{$row}")->applyFromArray([
                         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $color]],
                         'font' => ['bold' => true],
                     ]);

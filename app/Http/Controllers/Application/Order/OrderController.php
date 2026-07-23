@@ -14,7 +14,7 @@ class OrderController extends Controller
     public function trackingMyOrder(Request $request)
     {
         $actor = auth()->user('user-api') ;
-        $orders = Order::with('items')->where('user_id', $actor->id)->get();
+        $orders = Order::with('items')->where('user_id', $actor->id)->latest()->get();
         return $this->successApi($orders, 'Orders retrieved successfully');
     }
 }

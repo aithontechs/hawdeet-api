@@ -21,17 +21,8 @@ class CheckoutRequest extends FormRequest
             'phone' => [
                 'required_if:payment_method,wallet',
                 'nullable',
-                (new Phone())->country('EG'),
+                (new Phone())->international()
             ],
         ];
-    }
-
-    protected function prepareForValidation(): void
-    {
-        if ($this->filled('phone') && str_starts_with($this->phone, '0')) {
-            $this->merge([
-                'phone' => '+2' . ltrim($this->phone, '0'),
-            ]);
-        }
     }
 }
