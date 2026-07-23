@@ -21,7 +21,7 @@ class CheckoutRequest extends FormRequest
             'phone' => [
                 'required_if:payment_method,wallet',
                 'nullable',
-                (new Phone())->international()
+                (new Phone())->country('EG'),
             ],
         ];
     }
