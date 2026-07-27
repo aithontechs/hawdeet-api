@@ -8,13 +8,13 @@ use App\Traits\ResponseApi;
 
 class DashboardController extends Controller
 {
-    use ResponseApi ;
+    use ResponseApi;
 
-    public function __construct(private readonly DashboardService $dashboardService){}
+    public function __construct(private readonly DashboardService $dashboardService) {}
 
     public function stats()
     {
-        $stats = $this->dashboardService->getStats() ;
-        return $this->successApi($stats , 'Dashboard stats fetched successfully') ;
+        $stats = $this->dashboardService->getStats();
+        return $this->successApi($stats, 'Dashboard stats fetched successfully');
     }
 }

@@ -23,7 +23,7 @@ class UserSubscriptionController extends Controller
 
     public function index(Request $request)
     {
-        $subscriptions = UserSubscription::latest()->with(['user:id,name' , 'plan:id,name'])->status($request->status)->paginate(15) ;
+        $subscriptions = UserSubscription::latest()->with(['user:id,name' , 'plan:id,name','payment:id,user_subscription_id,currency'])->status($request->status)->paginate(15) ;
         $subscriptions->setCollection(UserSubscriptionResource::collection($subscriptions->getCollection())->collection);
         return $this->successApi($subscriptions,'Subscription fetched successfully');
     }

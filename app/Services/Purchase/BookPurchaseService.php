@@ -12,6 +12,7 @@ use App\Models\ShippingAddress;
 use App\Models\User;
 use App\Notifications\NewOrderCreated;
 use App\Services\Currency\ExchangeRateService;
+use App\Services\DashboardStats\DashboardService;
 use App\Services\Payment\PaymobService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -23,6 +24,7 @@ use Illuminate\Validation\ValidationException;
 class BookPurchaseService
 {
     public function __construct(private PaymobService $paymob ,private ExchangeRateService $exchangeRateService,
+                                private DashboardService $dashboardService
 ) {}
 
     public function purchase(User $user, Collection $items,float $subtotal,float $shippingCost,float $discount,float $total,string $paymentMethod, string $currency = 'EGP', ?int $shippingAddressId = null, ?string $idempotencyKey = null,): Order
@@ -73,7 +75,9 @@ class BookPurchaseService
                 ]);
             }
             Notification::send(Admin::active()->get(), new NewOrderCreated($user));
+            $this->dashboardService->clearCache();
             return $order->load('items');
+
         });
     }
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Application\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Dashboard\DashboardStats\DashboardController;
 use App\Http\Requests\Application\Auth\RegisterRequest;
 use App\Models\Admin;
 use App\Models\User;
@@ -20,6 +21,7 @@ class RegisterController extends Controller
     public function __construct(
         protected StorageService $storageService, protected CartService $cartService,
         protected PhoneCurrencyService $phoneCurrencyService,
+        protected DashboardController $dashboardService,
     ) {}
 
     public function store(RegisterRequest $request)
@@ -32,7 +34,7 @@ class RegisterController extends Controller
                 folder: 'avatar/users'
             );
         }
-        
+
         $data['preferred_currency'] = $this->phoneCurrencyService->resolveFromPhoneOrDefault(
             $data['phone'] ?? null
         );
@@ -45,6 +47,7 @@ class RegisterController extends Controller
 
         $user->sendEmailVerificationNotification();
         Notification::send(Admin::where('is_active' , 1)->get(), new NewUserRegistered($user));
+        $this->dashboardService->clearCache();
         return $this->successApi($user , 'User created successfully , you must verify email for login , check your email for OTP') ;
     }
 }

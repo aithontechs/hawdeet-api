@@ -20,6 +20,7 @@ public function toArray(Request $request): array
                 'end_at' => $this->end_at?->format('Y-m-d'),
             ],
             'price' => (float) $this->price,
+            'currency' => $this->payment?->currency ,
             'status' => $this->status,
             'payment_status' => $this->payment_status,
             'remaining_days' => now()->diffInDays($this->end_at, false),

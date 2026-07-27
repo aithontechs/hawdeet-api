@@ -7,6 +7,8 @@ use App\Models\Book;
 use App\Models\Order;
 use App\Models\User;
 use App\Notifications\BookPublishedNotification;
+use App\Services\DashboardStats\DashboardService;
+use App\Services\Qpdf\QpdfBinaryLocator;
 use App\Services\Storage\StorageService;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +16,6 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use setasign\Fpdi\Fpdi;
-use App\Services\Qpdf\QpdfBinaryLocator;
 
 class BookService
 {
@@ -22,7 +23,7 @@ class BookService
     const FILE_FOLDER    = 'books/files';
     const PREVIEW_FOLDER = 'books/previews';
 
-    public function __construct(private readonly StorageService $storage) {}
+    public function __construct(private readonly StorageService $storage , private readonly DashboardService $dashboardService) {}
 
     public function create(array $data, UploadedFile $coverFile, ?UploadedFile $bookFile): Book
     {
@@ -66,7 +67,7 @@ class BookService
         if ($tmpPath) {
             ProcessBookFiles::dispatch($book->id, $tmpPath, $previewStart, $previewEnd)->afterCommit();
         }
-
+        $this->dashboardService->clearCache();
         return $book->load('categories');
     }
 

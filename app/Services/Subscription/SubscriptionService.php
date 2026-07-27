@@ -7,6 +7,7 @@ use App\Models\Coupon;
 use App\Models\UserBook;
 use App\Services\Coupon\CouponService;
 use App\Services\Currency\ExchangeRateService;
+use App\Services\DashboardStats\DashboardService;
 use App\Services\Payment\PaymobService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -20,6 +21,8 @@ class SubscriptionService
         private PaymobService $paymob,
         private readonly CouponService $couponService,
         private readonly ExchangeRateService $exchangeRateService,
+        private readonly DashboardService $dashboardService,
+
     ) {}
 
     public function initiate(User $user, SubscriptionPlan $plan, ?Coupon $coupon = null, string $currency = 'EGP'): Payment
@@ -44,21 +47,8 @@ class SubscriptionService
                 'status'          => 'inactive',
                 'payment_status'  => 'pending',
             ]);
-
+            $this->dashboardService->clearCache();
             return $this->createPendingPayment($subscription, $user, $originalAmount, $discount, $finalAmount, $coupon, $currency);
-
-            // return Payment::create([
-            //     'user_id'              => $user->id,
-            //     'user_subscription_id' => $subscription->id,
-            //     'original_amount'      => $originalAmount,
-            //     'discount_amount'      => $discount,
-            //     'amount'               => $finalAmount,
-            //     'coupon_id'            => $coupon?->id,
-            //     'currency'             => 'EGP',
-            //     'type'                 => 'subscription',
-            //     'status'               => 'pending',
-            //     'payment_gateway'      => 'paymob',
-            // ]);
         });
     }
 
@@ -95,7 +85,7 @@ class SubscriptionService
                 'status'          => 'inactive',
                 'payment_status'  => 'pending',
             ]);
-
+            $this->dashboardService->clearCache();
             return $this->createPendingPayment($subscription, $user, $originalAmount, $discount, $finalAmount, $coupon, $currency);
         });
     }
