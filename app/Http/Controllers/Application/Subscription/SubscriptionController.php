@@ -178,8 +178,8 @@ class SubscriptionController extends Controller
 
         return $this->successApi([
             'payment_id'      => $payment->id,
-            'original_amount' => $pendingSubscription->original_amount,
-            'discount'        => $pendingSubscription->discount_amount,
+            'original_amount' => $payment->subscription->original_amount,
+            'discount'        => $payment->subscription->discount_amount,
             'amount'          => $payment->amount,
             'currency'        => $payment->currency,
             'payment_url'     => $paymentUrl,

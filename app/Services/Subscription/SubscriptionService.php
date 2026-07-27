@@ -97,19 +97,6 @@ class SubscriptionService
             ]);
 
             return $this->createPendingPayment($subscription, $user, $originalAmount, $discount, $finalAmount, $coupon, $currency);
-
-            // return Payment::create([
-            //     'user_id'              => $user->id,
-            //     'user_subscription_id' => $subscription->id,
-            //     'original_amount'      => $originalAmount,
-            //     'discount_amount'      => $discount,
-            //     'amount'               => $finalAmount,
-            //     'coupon_id'            => $coupon?->id,
-            //     'currency'             => 'EGP',
-            //     'type'                 => 'subscription',
-            //     'status'               => 'pending',
-            //     'payment_gateway'      => 'paymob',
-            // ]);
         });
     }
 
@@ -332,7 +319,7 @@ class SubscriptionService
 
 
 
-    private function createPendingPayment(
+        private function createPendingPayment(
         UserSubscription $subscription, User $user, float $originalAmount,
         float $discount, float $finalAmount, ?Coupon $coupon, string $currency
     ): Payment {
