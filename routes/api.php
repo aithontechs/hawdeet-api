@@ -9,6 +9,7 @@ use App\Http\Controllers\Dashboard\Category\CategoryController;
 use App\Http\Controllers\Dashboard\Chat\AdminChatController;
 use App\Http\Controllers\Dashboard\Comment\CommentController;
 use App\Http\Controllers\Dashboard\Coupon\CouponController;
+use App\Http\Controllers\Dashboard\DashboardStats\DashboardController;
 use App\Http\Controllers\Dashboard\Notification\AdminNotificationController;
 use App\Http\Controllers\Dashboard\Order\OrderController;
 use App\Http\Controllers\Dashboard\Payment\PaymentController;
@@ -121,6 +122,8 @@ Route::group(['prefix'=> 'v1/admin'], function () {
             Route::get('/', [SettingController::class, 'index']);
             Route::put('/', [SettingController::class, 'update']);
         });
+
+        Route::get('dashboard/stats' , [DashboardController::class , 'stats']);
 
     });
 });

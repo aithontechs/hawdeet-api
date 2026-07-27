@@ -12,6 +12,7 @@ use App\Services\Subscription\SubscriptionService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class SubscriptionController extends Controller
 {
@@ -115,7 +116,7 @@ class SubscriptionController extends Controller
             'first_name'     => 'nullable|string',
             'last_name'      => 'nullable|string',
             'email'          => 'nullable|email',
-            'phone'          => 'nullable|digits:11',
+            'phone' => ['required_if:payment_method,wallet','nullable',(new Phone())->international()],
             'coupon_code'    => 'nullable|string',
         ]);
 

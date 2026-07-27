@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Application\Subscription;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class SubscriptionStoreRequest extends FormRequest
 {
@@ -21,7 +22,7 @@ class SubscriptionStoreRequest extends FormRequest
             'first_name'     => ['nullable', 'string', 'max:100'],
             'last_name'      => ['nullable', 'string', 'max:100'],
             'email'          => ['nullable', 'email'],
-            'phone' => ['required_if:payment_method,wallet','nullable','digits:11'],
+            'phone' => ['required_if:payment_method,wallet','nullable',(new Phone())->international()],
         ];
     }
 }
