@@ -34,7 +34,7 @@ class UserController extends Controller
         $user->load([
             'subscriptions' => fn ($q) =>
                 $q->select(['id','user_id','start_at','end_at','price','status','payment_status','canceled_at','ended_reason' , 'plan_id'])
-                ->with('plan:id,name,duration_months,price,compare_price')->latest()->limit(1),
+                ->with('plan:id,name,duration_months,price,compare_price')->latest()->get(),
             'authorBooks' => fn ($q) =>
                 $q->select(['id','author_id','title','cover','avg_rating'])
                 ->where('published', true),
