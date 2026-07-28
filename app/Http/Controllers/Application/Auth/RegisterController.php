@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Application\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Http\Controllers\Dashboard\DashboardStats\DashboardController;
 use App\Http\Requests\Application\Auth\RegisterRequest;
 use App\Models\Admin;
 use App\Models\User;
 use App\Notifications\NewUserRegistered;
 use App\Services\Cart\CartService;
 use App\Services\Currency\PhoneCurrencyService;
+use App\Services\DashboardStats\DashboardService;
 use App\Services\Storage\StorageService;
 use App\Traits\ResponseApi;
 use Illuminate\Support\Facades\Notification;
@@ -21,7 +21,7 @@ class RegisterController extends Controller
     public function __construct(
         protected StorageService $storageService, protected CartService $cartService,
         protected PhoneCurrencyService $phoneCurrencyService,
-        protected DashboardController $dashboardService,
+        protected DashboardService $dashboardService,
     ) {}
 
     public function store(RegisterRequest $request)
