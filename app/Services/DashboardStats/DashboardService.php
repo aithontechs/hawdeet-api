@@ -28,7 +28,7 @@ class DashboardService
     {
         return Cache::remember('dashboard.totals', self::CACHE_TTL, function () {
             return [
-                'total_users'         => User::count(),
+                'total_users'         => User::where('is_author' , false )->count(),
                 'total_books'         => Book::count(),
                 'total_subscriptions' => UserSubscription::count(),
                 'total_sales'         => [
