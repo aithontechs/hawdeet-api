@@ -121,25 +121,26 @@ class PaymentController extends Controller
         $merchantOrderId = $request->query('merchant_order_id');
 
         if (!$merchantOrderId) {
-            return $this->errorApi(message: 'Missing merchant_order_id');
+            return $this->handleCallbackFailure('mobile', 'Missing merchant_order_id');
         }
 
+        $platform  = $this->extractPlatform((string) $merchantOrderId);
         $paymentId = $this->extractPaymentId((string) $merchantOrderId);
         $payment   = Payment::find($paymentId);
 
         if (!$payment) {
-            return $this->errorApi(message: 'Payment not found');
+            return $this->handleCallbackFailure($platform, 'Payment not found');
         }
 
         if ($payment->isPaid()) {
-            return $this->successApi(null, message: 'Payment completed successfully');
+            return $this->handleCallbackSuccess($platform, $payment, 'Payment completed successfully');
         }
 
         if (!$isSuccess) {
-            return $this->errorApi(message: 'Payment failed', errors: $payment->failure_reason);
+            return $this->handleCallbackFailure($platform, 'Payment failed', $payment->failure_reason);
         }
 
-        return $this->successApi(null, message: 'Payment completed successfully');
+        return $this->handleCallbackSuccess($platform, $payment, 'Payment completed successfully');
     }
 
     private function handleOrderPayment(Payment $payment): void
@@ -184,14 +185,6 @@ class PaymentController extends Controller
         Log::info("Subscription #{$subscription->id} activated via Paymob webhook.");
     }
 
-
-    private function extractPaymentId(string $merchantOrderId): string
-    {
-        return str_contains($merchantOrderId, 'PAY-')
-            ? explode('-', $merchantOrderId)[1]
-            : $merchantOrderId;
-    }
-
     private function deductPhysicalStock(Order $order): void
     {
         $physicalItems = $order->items()->where('item_type', 'physical')->get();
@@ -219,5 +212,37 @@ class PaymentController extends Controller
 
             }
         }
+    }
+
+
+    private function handleCallbackSuccess(string $platform, Payment $payment, string $message)
+    {
+        if ($platform === 'web') {
+            $frontendUrl = rtrim(config('services.frontend.url'), '/');
+            return redirect("{$frontendUrl}/payment-summary?status=success&order_id={$payment->order_id}");
+        }
+
+        return $this->successApi(null, message: $message);
+    }
+
+    private function handleCallbackFailure(string $platform, string $message, $errors = null)
+    {
+        if ($platform === 'web') {
+            $frontendUrl = rtrim(config('services.frontend.url'), '/');
+            return redirect("{$frontendUrl}/payment-summary?status=failed&message=" . urlencode($message));
+        }
+
+        return $this->errorApi(message: $message, errors: $errors);
+    }
+
+    private function extractPaymentId(string $merchantOrderId): string
+    {
+        return str_contains($merchantOrderId, 'PAY-') ? explode('-', $merchantOrderId)[1] : $merchantOrderId;
+    }
+
+    private function extractPlatform(string $merchantOrderId): string
+    {
+        $parts = explode('-', $merchantOrderId);
+        return $parts[2] ?? 'mobile'; 
     }
 }

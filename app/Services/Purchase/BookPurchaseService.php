@@ -156,13 +156,16 @@ class BookPurchaseService
             'postal_code'  => 'N/A',  'state'   => 'N/A',
         ];
 
+        $platform = $request->input('platform', 'mobile');
+        $merchantOrderId = "PAY-{$payment->id}-{$platform}-" . now()->timestamp;
+
         if ($method === 'card') {
 
-            $result = $this->paymob->createCardPayment($amountCents,$billingData,"PAY-{$payment->id}-" . now()->timestamp,$payment->gateway_currency);
+            $result = $this->paymob->createCardPayment($amountCents,$billingData, $merchantOrderId ,$payment->gateway_currency);
             $url = $result['iframe_url'];
         } else {
 
-            $result = $this->paymob->createWalletPayment($amountCents,$billingData,"PAY-{$payment->id}-" . now()->timestamp,$request->input('phone', '') , $payment->gateway_currency);
+            $result = $this->paymob->createWalletPayment($amountCents,$billingData, $merchantOrderId ,$request->input('phone', '') , $payment->gateway_currency);
             $url = $result['redirect_url'];
         }
 
