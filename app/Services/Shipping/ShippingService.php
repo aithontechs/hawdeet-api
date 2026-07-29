@@ -143,6 +143,6 @@ class ShippingService
                 ->orderBy('name')
                 ->get(['id', 'name', 'cost' , 'cost_usd' , 'country' , 'days_min', 'days_max' , 'is_active' , 'is_default']);
         });
-    }
+    }ئ
 
 }

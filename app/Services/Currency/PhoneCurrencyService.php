@@ -41,7 +41,6 @@ class PhoneCurrencyService
         return str_starts_with($phone, '+') || str_starts_with($phone, '00');
     }
 
-    // في PhoneCurrencyService - إضافة method مخصصة للتسجيل بترجع قيمة أكيدة دايماً
     public function resolveFromPhoneOrDefault(?string $phone, string $default = 'EGP'): string
     {
         return $this->resolveFromPhone($phone) ?? $default;
