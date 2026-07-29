@@ -9,7 +9,7 @@ class CouponUsage extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['coupon_id' , 'order_id' , 'user_id' , 'total_order_before_discound' , 'value_discound'];
+    protected $fillable = ['coupon_id' , 'order_id' , 'user_subscription_id' , 'user_id' , 'total_order_before_discound' , 'value_discound'];
     public $hidden = ['created_at' , 'updated_at'] ;
 
 
@@ -17,6 +17,11 @@ class CouponUsage extends Model
     public function order()
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function subscription()
+    {
+        return $this->belongsTo(UserSubscription::class , 'user_subscription_id');
     }
 
     public function user()

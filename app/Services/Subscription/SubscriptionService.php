@@ -108,7 +108,7 @@ class SubscriptionService
 
             if ($subscription->coupon_id) {
                 $coupon = $subscription->coupon;
-                $this->couponService->recordUsage($coupon,orderId:$subscription->id,userId:$payment->user_id,totalBefore: $subscription->original_amount,discountValue: $subscription->discount_amount);
+                $this->couponService->recordSubscriptionUsage($coupon,$subscription->id,$payment->user_id,$subscription->original_amount,$subscription->discount_amount);
             }
 
             $previousExpiredSub = UserSubscription::query()

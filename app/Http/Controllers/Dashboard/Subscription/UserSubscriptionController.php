@@ -9,6 +9,7 @@ use App\Http\Resources\UserSubscriptionResource;
 use App\Models\SubscriptionPlan;
 use App\Models\UserSubscription;
 use App\Traits\ResponseApi;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -66,16 +67,19 @@ class UserSubscriptionController extends Controller
             return $this->errorApi("Subscription already active until $user_subscription->end_at ") ;
         }
 
-        if($request->count_month === 0){
+        if($request->count_months === 0){
             $user_subscription->update([
                 'status' => 'active',
             ]);
             return $this->successApi($user_subscription, 'Subscription Activated successfully');
         }
 
+        $baseDate = ($user_subscription->end_at && $user_subscription->end_at->isFuture())? Carbon::parse($user_subscription->end_at): now();
+        $newEndAt = $baseDate->addMonths($request->count_months);
+
         $user_subscription->update([
             'status' => 'active',
-            'end_at' => now()->addMonths($request->count_months),
+            'end_at' => $newEndAt,
         ]);
 
         return $this->successApi($user_subscription, 'Subscription Activated successfully');

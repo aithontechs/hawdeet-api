@@ -55,11 +55,16 @@ class CouponService
             ]);
         }
 
-        $alreadyUsed = $coupon->coupon_usages()->where('user_id', $user->id)
-                                ->whereHas('order', function ($q) {
-                                    $q->where('payment_status', 'paid');
-                                })
-                                ->exists();
+        $alreadyUsed = $coupon->coupon_usages()
+            ->where('user_id', $user->id)
+            ->where(function ($q) {
+                $q->whereHas('order', function ($q) {
+                    $q->where('payment_status', 'paid');
+                })->orWhereHas('subscription', function ($q) {
+                    $q->where('payment_status', 'paid');
+                });
+            })
+            ->exists();
 
         if ($alreadyUsed) {
             throw ValidationException::withMessages([
@@ -89,6 +94,19 @@ class CouponService
             'user_id'                    => $userId,
             'total_order_before_discound' => $totalBefore,
             'value_discound'             => $discountValue,
+        ]);
+
+        $coupon->increment('used_count');
+    }
+
+    public function recordSubscriptionUsage(Coupon $coupon,int $subscriptionId,int $userId,float $totalBefore,float $discountValue): void
+    {
+
+        $coupon->coupon_usages()->create([
+            'user_subscription_id' => $subscriptionId,
+            'user_id' => $userId,
+            'total_order_before_discound' => $totalBefore,
+            'value_discound' => $discountValue,
         ]);
 
         $coupon->increment('used_count');
