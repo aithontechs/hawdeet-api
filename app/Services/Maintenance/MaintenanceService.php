@@ -37,7 +37,7 @@ class MaintenanceService
 
             $ids = UserSubscription::query()
                 ->where('status', 'inactive')
-                ->where('payment_status', 'pending')
+                ->whereIn('payment_status', ['pending' , 'failed'])
                 ->where('created_at', '<=', now()->subMinutes(30))
                 ->pluck('id');
 
@@ -46,8 +46,8 @@ class MaintenanceService
             }
 
             Payment::whereIn('user_subscription_id', $ids)
-                ->where('status', 'pending')
-                ->delete();
+                        ->whereIn('status', ['pending' , 'failed'])
+                        ->delete();
 
             UserSubscription::whereIn('id', $ids)->delete();
         });
