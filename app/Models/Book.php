@@ -272,4 +272,14 @@ class Book extends Model
         return $this->{$field} !== null ? (float) $this->{$field} : null;
     }
 
+    public function totalSalesFor(string $bookType = null )
+    {
+        $query = $this->orderItems();
+
+        if ($bookType) {
+            $query->where('item_type', $bookType);
+        }
+
+        return $query->sum('quantity');
+    }
 }

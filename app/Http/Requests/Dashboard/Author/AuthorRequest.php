@@ -5,6 +5,7 @@ namespace App\Http\Requests\Dashboard\Author;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class AuthorRequest extends FormRequest
 {
@@ -24,7 +25,7 @@ class AuthorRequest extends FormRequest
                 'email',
                 Rule::unique('users', 'email')->ignore($userId),
             ],
-            'phone' => 'nullable|regex:/^01[0125][0-9]{8}$/|unique:users,phone',
+            'phone' => [ 'nullable' , (new Phone())->international(), 'unique:users,phone'],
             'password' => [
                 $this->isMethod('post') ? 'required' : 'sometimes',
                 'max:25',

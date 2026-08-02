@@ -121,6 +121,7 @@ class BookController extends Controller
         $data = $this->formatBook($book, $accessContext, $currency);
         $data['description'] = $book->description;
         $data['currency'] = $currency ;
+        $data['total_sales'] = $book->totalSalesFor($book->type);
         return $this->successApi($data, 'Book details fetched successfully');
     }
 
