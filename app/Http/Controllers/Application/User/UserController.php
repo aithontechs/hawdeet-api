@@ -75,10 +75,10 @@ class UserController extends Controller
         if ($request->hasFile('avatar_url')) {
             $data['avatar_url'] = $this->storageService->replace($request->file('avatar_url'),$oldAvatar,'avatar/users');
         }
-        // if (isset($data['phone'])) {
-        //     $data['phone'] = $this->phoneNormalizer->normalize($data['phone']);
-        //     $data['preferred_currency'] = $this->phoneCurrencyService->resolveFromPhoneOrDefault($data['phone'] ?? null);
-        // }
+        if (isset($data['phone'])) {
+            $data['phone'] = $this->phoneNormalizer->normalize($data['phone']);
+            $data['preferred_currency'] = $this->phoneCurrencyService->resolveFromPhoneOrDefault($data['phone'] ?? null);
+        }
         $user->update($data);
         $this->profileService->clearCache($user->id);
         $this->shippingService->clearCache() ;
@@ -98,10 +98,10 @@ class UserController extends Controller
                 'avatar/users'
             );
         }
-        // if (isset($data['phone'])) {
-        //     $data['phone'] = $this->phoneNormalizer->normalize($data['phone']);
-        //     $data['preferred_currency'] = $this->phoneCurrencyService->resolveFromPhoneOrDefault($data['phone'] ?? null);
-        // }
+        if (isset($data['phone'])) {
+            $data['phone'] = $this->phoneNormalizer->normalize($data['phone']);
+            $data['preferred_currency'] = $this->phoneCurrencyService->resolveFromPhoneOrDefault($data['phone'] ?? null);
+        }
         $user->update($data);
 
         $this->profileService->clearCache($user->id);
