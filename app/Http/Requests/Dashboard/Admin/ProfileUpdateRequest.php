@@ -4,6 +4,7 @@ namespace App\Http\Requests\Dashboard\Admin;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Propaganistas\LaravelPhone\Rules\Phone;
 
 class ProfileUpdateRequest extends FormRequest
 {
@@ -32,7 +33,7 @@ class ProfileUpdateRequest extends FormRequest
             ],
             'phone' => [
                 'sometimes',
-                'string',
+                (new Phone())->international(),
                 Rule::unique('admins', 'phone')->ignore(auth('admin-api')->id())
             ],
             'avatar_url' => 'sometimes|image|max:2048' ,
