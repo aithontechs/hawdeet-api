@@ -276,10 +276,12 @@ class Book extends Model
     {
         $query = $this->orderItems();
 
-        if ($bookType) {
-            $query->where('item_type', $bookType);
-        }
+        $total_sales = match ($bookType) {
+            'digital' => $query->where('item_type', 'digital')->sum('quantity'),
+            'physical' => $query->where('item_type', 'physical')->sum('quantity'),
+            default => $query->sum('quantity'),
+        };
 
-        return $query->sum('quantity');
+        return (int) $total_sales;
     }
 }
