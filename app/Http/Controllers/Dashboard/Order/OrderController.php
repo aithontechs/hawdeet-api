@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Dashboard\Order;
 use App\Exports\OrdersExport;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Services\Order\OrderCancellationService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
 use Maatwebsite\Excel\Facades\Excel;
@@ -12,6 +13,10 @@ use Maatwebsite\Excel\Facades\Excel;
 class OrderController extends Controller
 {
     use ResponseApi ;
+
+    public function __construct(
+        private OrderCancellationService $cancellationService,
+    ) {}
 
     public function index(Request $request)
     {
@@ -35,22 +40,18 @@ class OrderController extends Controller
             ]);
         }
 
-        return $this->successApi(
-            $order,
-            'Order details fetched successfully'
-        );
+        return $this->successApi($order,'Order details fetched successfully');
     }
 
     public function updateShippingOrderStatus(Request $request , Order $order)
     {
-        $this->authorize('viewAny', Order::class) ;
+        $this->authorize('status', Order::class) ;
         $request->validate([
-            'status' => 'required|in:processing,shipped,delivered,cancelled,returned'
+            'status' => 'required|in:processing,shipped,delivered,cancelled,returned',
+            'reason' => 'nullable|string|max:255',
         ]);
 
         abort_unless($order->has_physical , 400 , 'This order does not require shipping.') ;
-        // abort_unless($order->paid_at , 400 , 'This order must be paid to shipping it') ;
-
 
         $allowedTransitions = [
             null => ['processing', 'cancelled'],
@@ -68,6 +69,20 @@ class OrderController extends Controller
             "Cannot change shipping status from {$currentStatus} to {$newStatus}."
         );
 
+        if ($newStatus === 'cancelled') {
+            $order = $this->cancellationService->cancelByAdmin(
+                $order, auth('admin-api')->user(), $request->reason
+            );
+            return $this->successApi($order, 'Order cancelled successfully.');
+        }
+
+        if ($newStatus === 'returned') {
+            $order = $this->cancellationService->markReturned(
+                $order, auth('admin-api')->user(), $request->reason
+            );
+            return $this->successApi($order, 'Order marked as returned and refunded.');
+        }
+
         $data = [
             'shipping_status' => $newStatus,
         ];
@@ -77,8 +92,11 @@ class OrderController extends Controller
         }
 
         if ($newStatus === 'delivered' && $order->delivered_at === null) {
-        // abort_unless($order->paid_at , 400 , 'This order must be paid to deliveryed it') ;
             $data['delivered_at'] = now();
+            if ($order->payment_method === 'cash' && $order->payment_status === 'pending') {
+                $data['payment_status'] = 'paid';
+                $data['paid_at'] = now();
+            }
         }
 
         $order->update($data);
@@ -135,6 +153,5 @@ class OrderController extends Controller
         $fileName = 'orders_' . now()->format('Y_m_d_His') . '.xlsx';
         return Excel::download(new OrdersExport($request), $fileName);
     }
-
 
 }

@@ -196,6 +196,7 @@ Route::group(['prefix'=> 'v1'] , function () {
             // Route::delete('/{council}', [ReadingCouncilController::class, 'destroy']);
         });
 
+        Route::get('/orders/{order}/cancel', [OrderController::class, 'cancel']);
         Route::get('/orders/tracking', [OrderController::class, 'trackingMyOrder']);
 
     });

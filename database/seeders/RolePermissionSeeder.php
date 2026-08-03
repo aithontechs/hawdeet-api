@@ -60,6 +60,8 @@ class RolePermissionSeeder extends Seeder
 
             ['name' => 'View Orders', 'permission' => 'order.view'],
             ['name' => 'Show Order Details', 'permission' => 'order.show'],
+            ['name' => 'Change Status Of Orders', 'permission' => 'order.status'],
+
 
             ['name' => 'View User Subscriptions', 'permission' => 'usersubscription.view'],
             ['name' => 'Show User Subscription Details', 'permission' => 'usersubscription.show'],

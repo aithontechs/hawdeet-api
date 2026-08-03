@@ -26,7 +26,12 @@ class Order extends Model
         'shipping_status',
         'shipped_at',
         'delivered_at',
-        'currency'
+        'currency',
+        'cancelled_at',
+        'cancellation_reason',
+        'cancelled_by_admin_id',
+        'refunded_at',
+        'refund_reason',
     ];
 
     protected $casts = [
@@ -94,6 +99,11 @@ class Order extends Model
     public function physicalOrder()
     {
         return $this->hasOne(PhysicalOrder::class);
+    }
+
+    public function cancelledByAdmin()
+    {
+        return $this->belongsTo(Admin::class, 'cancelled_by_admin_id');
     }
 
     public static function generateOrderNumber()
