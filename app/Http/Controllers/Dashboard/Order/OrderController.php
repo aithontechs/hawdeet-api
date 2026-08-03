@@ -8,6 +8,8 @@ use App\Models\Order;
 use App\Services\Order\OrderCancellationService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
 class OrderController extends Controller
@@ -83,24 +85,44 @@ class OrderController extends Controller
             return $this->successApi($order, 'Order marked as returned and refunded.');
         }
 
-        $data = [
-            'shipping_status' => $newStatus,
-        ];
+        $order = DB::transaction(function () use ($order, $newStatus) {
+            $data = ['shipping_status' => $newStatus];
 
-        if ($newStatus === 'shipped' && $order->shipped_at === null) {
-            $data['shipped_at'] = now();
-        }
-
-        if ($newStatus === 'delivered' && $order->delivered_at === null) {
-            $data['delivered_at'] = now();
-            if ($order->payment_method === 'cash' && $order->payment_status === 'pending') {
-                $data['payment_status'] = 'paid';
-                $data['paid_at'] = now();
+            if ($newStatus === 'shipped' && $order->shipped_at === null) {
+                $data['shipped_at'] = now();
             }
-        }
 
-        $order->update($data);
-        return $this->successApi($order->fresh() , 'Shipping status updated successfully.');
+            if ($newStatus === 'delivered' && $order->delivered_at === null) {
+                $data['delivered_at'] = now();
+
+                if ($order->payment_method === 'cash' && $order->payment_status === 'pending') {
+                    $data['payment_status'] = 'paid';
+                    $data['paid_at'] = now();
+
+                    $payment = $order->payments()
+                                    ->where('payment_gateway', 'cash_on_delivery')
+                                    ->where('status', 'pending')
+                                    ->latest()
+                                    ->first();
+
+                    if ($payment) {
+                        $payment->update([
+                            'status'  => 'paid',
+                            'paid_at' => now(),
+                        ]);
+                    } else {
+                        Log::warning("COD order #{$order->order_number} marked paid but no pending cash_on_delivery Payment found.", [
+                            'order_id' => $order->id,
+                        ]);
+                    }
+                }
+            }
+
+            $order->update($data);
+
+            return $order->fresh();
+        });
+        return $this->successApi($order , 'Shipping status updated successfully.');
     }
 
     public function stats()
