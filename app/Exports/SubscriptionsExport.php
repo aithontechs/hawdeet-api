@@ -10,6 +10,7 @@ use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
+use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
@@ -18,7 +19,7 @@ use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class SubscriptionsExport implements FromQuery, WithTitle, WithHeadings, WithMapping,
-    WithStyles, ShouldAutoSize, WithEvents
+    WithStyles, ShouldAutoSize, WithEvents, WithColumnFormatting
 {
     protected int $rowNumber = 1;
     protected ?string $status;
@@ -34,7 +35,7 @@ class SubscriptionsExport implements FromQuery, WithTitle, WithHeadings, WithMap
             'user:id,name,email,phone',
             'plan:id,name,duration_months,price',
             'coupon:id,code,discount_type,discount_value',
-            'payment:id,user_subscription_id,currency,gateway_amount,gateway_currency', // 🆕
+            'payment:id,user_subscription_id,currency,gateway_amount,gateway_currency',
         ])
         ->status($this->status)
         ->latest();
@@ -49,7 +50,8 @@ class SubscriptionsExport implements FromQuery, WithTitle, WithHeadings, WithMap
             'رقم الهاتف',
             'الخطة',
             'مدة الخطة (أشهر)',
-            'العملة',
+            'عملة الدفع',
+            'المبلغ الأصلي',
             'قيمة الخصم',
             'السعر المدفوع',
             'المبلغ المحصّل فعلياً (بوابة الدفع)',
@@ -68,10 +70,10 @@ class SubscriptionsExport implements FromQuery, WithTitle, WithHeadings, WithMap
     public function map($subscription): array
     {
         $statusMap = [
-            'active'    => 'نشط',
-            'expired'   => 'منتهي',
-            'canceled'  => 'ملغي',
-            'pending'   => 'معلق',
+            'active'   => 'نشط',
+            'expired'  => 'منتهي',
+            'canceled' => 'ملغي',
+            'pending'  => 'معلق',
         ];
 
         $paymentStatusMap = [
@@ -80,6 +82,8 @@ class SubscriptionsExport implements FromQuery, WithTitle, WithHeadings, WithMap
             'failed'  => 'فاشل',
         ];
 
+        $payment = $subscription->payment;
+
         return [
             $this->rowNumber++,
             $subscription->user->name              ?? 'لايوجد',
@@ -87,14 +91,14 @@ class SubscriptionsExport implements FromQuery, WithTitle, WithHeadings, WithMap
             $subscription->user->phone             ?? 'لايوجد',
             $subscription->plan->name              ?? 'لايوجد',
             $subscription->plan->duration_months   ?? 'لايوجد',
-            $payment->currency ?? 'EGP',
+            $payment->currency                     ?? 'EGP',
             $subscription->original_amount         ?? 0,
             $subscription->discount_amount         ?? 0,
             $subscription->price,
-            $payment->gateway_amount   ?? '-',
-            $payment->gateway_currency ?? '-',
+            $payment->gateway_amount               ?? 'لايوجد',
+            $payment->gateway_currency             ?? 'لايوجد',
             $subscription->coupon->code            ?? 'لايوجد',
-            $statusMap[$subscription->status]         ?? ($subscription->status ?? 'لايوجد'),
+            $statusMap[$subscription->status]      ?? ($subscription->status   ?? 'لايوجد'),
             $paymentStatusMap[$subscription->payment_status] ?? ($subscription->payment_status ?? 'لايوجد'),
             $subscription->start_at?->format('Y-m-d')    ?? 'لايوجد',
             $subscription->end_at?->format('Y-m-d')      ?? 'لايوجد',
@@ -113,7 +117,6 @@ class SubscriptionsExport implements FromQuery, WithTitle, WithHeadings, WithMap
             'K' => NumberFormat::FORMAT_NUMBER_COMMA_SEPARATED2,
         ];
     }
-
 
     public function title(): string
     {
@@ -148,6 +151,7 @@ class SubscriptionsExport implements FromQuery, WithTitle, WithHeadings, WithMap
                 $sheet   = $event->sheet->getDelegate();
                 $lastRow = $sheet->getHighestRow();
                 $lastCol = $sheet->getHighestColumn();
+
                 $sheet->setRightToLeft(true);
                 $sheet->getRowDimension(1)->setRowHeight(28);
 
@@ -166,7 +170,7 @@ class SubscriptionsExport implements FromQuery, WithTitle, WithHeadings, WithMap
 
                 for ($row = 2; $row <= $lastRow; $row++) {
                     $currency = $sheet->getCell("G{$row}")->getValue();
-                    $color = $currency === 'USD' ? 'FFDDEBFF' : 'FFFFF3D6';
+                    $color    = $currency === 'USD' ? 'FFDDEBFF' : 'FFFFF3D6';
                     $sheet->getStyle("G{$row}")->applyFromArray([
                         'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => $color]],
                         'font' => ['bold' => true],
@@ -176,10 +180,10 @@ class SubscriptionsExport implements FromQuery, WithTitle, WithHeadings, WithMap
                 for ($row = 2; $row <= $lastRow; $row++) {
                     $status = $sheet->getCell("N{$row}")->getValue();
                     $color  = match ($status) {
-                        'نشط'   => 'FFD1FAE5', // green
-                        'معلق'  => 'FFFEF3C7', // yellow
-                        'ملغي'  => 'FFFEE2E2', // red
-                        'منتهي' => 'FFF3F4F6', // gray
+                        'نشط'   => 'FFD1FAE5',
+                        'معلق'  => 'FFFEF3C7',
+                        'ملغي'  => 'FFFEE2E2',
+                        'منتهي' => 'FFF3F4F6',
                         default => 'FFFFFFFF',
                     };
                     $sheet->getStyle("N{$row}")->applyFromArray([
