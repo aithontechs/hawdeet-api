@@ -9,11 +9,14 @@ use App\Models\OrderItem;
 use App\Models\Payment;
 use App\Models\PhysicalOrder;
 use App\Models\ShippingAddress;
+use App\Models\ShippingZone;
 use App\Models\User;
 use App\Notifications\NewOrderCreated;
+use App\Services\Cart\CartService;
 use App\Services\Currency\ExchangeRateService;
 use App\Services\DashboardStats\DashboardService;
 use App\Services\Payment\PaymobService;
+use App\Services\Shipping\LocationVerificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -23,15 +26,21 @@ use Illuminate\Validation\ValidationException;
 
 class BookPurchaseService
 {
+    public const COD_FEE = 30.0;
+    public const FEE_APPLICABLE_METHODS = ['cash'];
+
     public function __construct(private PaymobService $paymob ,private ExchangeRateService $exchangeRateService,
-                                private DashboardService $dashboardService
+                                private DashboardService $dashboardService , private LocationVerificationService $locationService,
+                                private CartService $cartService
+
 ) {}
 
-    public function purchase(User $user, Collection $items,float $subtotal,float $shippingCost,float $discount,float $total,string $paymentMethod, string $currency = 'EGP', ?int $shippingAddressId = null, ?string $idempotencyKey = null,): Order
+    public function purchase(User $user, Collection $items,float $subtotal,float $shippingCost,float $discount,float $total,string $paymentMethod, string $currency = 'EGP', ?int $shippingAddressId = null, ?string $idempotencyKey = null,float $paymentFee = 0.0): Order
     {
         return DB::transaction(function () use (
             $user, $items, $subtotal, $shippingCost,
-            $discount, $total, $paymentMethod, $currency , $shippingAddressId , $idempotencyKey
+            $discount, $total, $paymentMethod, $currency ,
+            $shippingAddressId , $idempotencyKey , $paymentFee,
         ) {
             $this->validateItems($user, $items);
 
@@ -44,6 +53,7 @@ class BookPurchaseService
                         'subtotal' => $subtotal,
                         'shipping_cost'=> $shippingCost,
                         'discount' => $discount,
+                        'payment_fee' => $paymentFee,
                         'total' => $total,
                         'currency'        => $currency,
                         'has_physical'   => $hasPhysical,
@@ -65,7 +75,7 @@ class BookPurchaseService
             }
 
             if ($hasPhysical && $shippingAddressId) {
-                $address = ShippingAddress::with('zone')->findOrFail($shippingAddressId);
+                // ShippingAddress::with('zone')->findOrFail($shippingAddressId);
 
                 PhysicalOrder::create([
                     'order_id'           => $order->id,
@@ -74,6 +84,12 @@ class BookPurchaseService
                     'delivery_status'    => 'pending',
                 ]);
             }
+
+            if ($paymentMethod === 'cash') {
+                $this->deductPhysicalStock($order);
+                $this->cartService->clearCart(null, $user->id);
+            }
+
             Notification::send(Admin::active()->get(), new NewOrderCreated($user));
             $this->dashboardService->clearCache();
             return $order->load('items');
@@ -83,6 +99,20 @@ class BookPurchaseService
 
     public function createPendingPayment(Order $order, User $user, string $method): Payment
     {
+        if ($method === 'cash') {
+            return Payment::create([
+                'user_id'         => $user->id,
+                'order_id'        => $order->id,
+                'amount'          => $order->total,
+                'currency'        => $order->currency,
+                'gateway_amount'  => $order->total,
+                'gateway_currency'=> $order->currency,
+                'type'            => 'order',
+                'status'          => 'pending',
+                'payment_gateway' => 'cash_on_delivery',
+            ]);
+        }
+
         $existing = Payment::where('order_id', $order->id)
             ->whereIn('status',  ['pending', 'failed'])
             ->first();
@@ -118,6 +148,9 @@ class BookPurchaseService
 
     public function initiatePaymobPayment(Payment $payment, Request $request, string $method): string
     {
+        if ($method === 'cash') {
+            return '';
+        }
         $payment->refresh();
 
         if ($payment->status === 'failed') {
@@ -202,7 +235,7 @@ class BookPurchaseService
     }
 
 
-    public function buildIdempotencyKey(int $userId, Collection $items, float $subtotal, float $shippingCost, float $discount , string $currency = 'EGP'): string
+    public function buildIdempotencyKey(int $userId, Collection $items, float $subtotal, float $shippingCost, float $discount , string $currency = 'EGP',string $paymentMethod = 'cash'): string
     {
         $itemsSignature = $items
             ->sortBy('book_id')
@@ -211,7 +244,7 @@ class BookPurchaseService
 
         $cartIds = $items->pluck('cart_id')->sort()->join(',');
 
-        return md5("{$userId}|{$itemsSignature}|{$cartIds}|{$subtotal}|{$shippingCost}|{$discount}|{$currency}");
+        return md5("{$userId}|{$itemsSignature}|{$cartIds}|{$subtotal}|{$shippingCost}|{$discount}|{$currency}|{$paymentMethod}");
     }
 
 
@@ -248,6 +281,57 @@ class BookPurchaseService
             'city'         => 'Cairo', 'country' => 'EG',
             'postal_code'  => 'N/A',  'state'   => 'N/A',
         ];
+    }
+
+    public function calculatePaymentFee(string $paymentMethod): float
+    {
+        return in_array($paymentMethod, self::FEE_APPLICABLE_METHODS, true) ? self::COD_FEE : 0.0;
+    }
+
+    public function assertCashOnDeliveryAllowed(Collection $items, ?ShippingZone $shippingZone, User $user): void
+    {
+        $allPhysical = $items->every(fn ($i) => $i['item_type'] === 'physical');
+
+        if (! $allPhysical) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'الدفع عند الاستلام متاح فقط للطلبات اللي كل عناصرها كتب ورقية.',
+            ]);
+        }
+
+        if (! $this->locationService->isInsideEgypt($user, $shippingZone)) {
+            throw ValidationException::withMessages([
+                'payment_method' => 'الدفع عند الاستلام غير متاح خارج مصر.',
+            ]);
+        }
+    }
+
+    public function deductPhysicalStock(Order $order): void
+    {
+        $physicalItems = $order->items()->where('item_type', 'physical')->get();
+
+        foreach ($physicalItems as $item) {
+            $column = $item->cover_type === 'hard_cover'
+                ? 'physical_hard_cover_stock'
+                : 'physical_stock';
+
+            $affected = DB::table('books')
+                ->where('id', $item->book_id)
+                ->where($column, '>=', $item->quantity)
+                ->decrement($column, $item->quantity);
+
+            if (!$affected) {
+                DB::table('books')->where('id', $item->book_id)->decrement($column, 0);
+
+                Log::critical("OVERSELL: Stock deduction failed for paid order. Manual intervention required.", [
+                    'order_id'   => $order->id,
+                    'book_id'    => $item->book_id,
+                    'cover_type' => $item->cover_type,
+                    'quantity'   => $item->quantity,
+                ]);
+
+
+            }
+        }
     }
 
 }

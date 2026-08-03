@@ -272,14 +272,16 @@ class Book extends Model
         return $this->{$field} !== null ? (float) $this->{$field} : null;
     }
 
-    public function totalSalesFor(string $bookType = null )
+    public function totalSalesFor(?string $bookType = null )
     {
-        $query = $this->orderItems();
+        $query = $this->orderItems()->whereHas('order', function ($q) {
+            $q->where('payment_status', 'paid');
+        });
 
         $total_sales = match ($bookType) {
-            'digital' => $query->where('item_type', 'digital')->sum('quantity'),
-            'physical' => $query->where('item_type', 'physical')->sum('quantity'),
-            default => $query->sum('quantity'),
+            'digital' => (int) $query->where('item_type', 'digital')->sum('quantity'),
+            'physical' => (int) $query->where('item_type', 'physical')->sum('quantity'),
+            default => (int) $query->sum('quantity'),
         };
 
         return (int) $total_sales;

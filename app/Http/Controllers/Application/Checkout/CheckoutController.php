@@ -10,9 +10,11 @@ use App\Services\Coupon\CouponService;
 use App\Services\Currency\CurrencyResolver;
 use App\Services\Purchase\BookAccessGrantService;
 use App\Services\Purchase\BookPurchaseService;
+use App\Services\Shipping\LocationVerificationService;
 use App\Services\Shipping\ShippingService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class CheckoutController extends Controller
 {
@@ -25,6 +27,7 @@ class CheckoutController extends Controller
         private CouponService  $couponService,
         private ShippingService $shippingService,
         private CurrencyResolver  $currencyResolver,
+        private LocationVerificationService $locationService,
     ) {}
 
     public function shippingZones(Request $request)
@@ -40,8 +43,10 @@ class CheckoutController extends Controller
         $request->validate([
             'shipping_zone_id' => 'nullable|exists:shipping_zones,id',
             'coupon_code'      => 'nullable|string',
+            'payment_method'   => 'nullable|in:wallet,card,cash',
         ]);
 
+        /** @var \App\Models\User $user */
         $user     = auth('user-api')->user();
         $cookieId = $this->cartService->getOrCreateCookieId($request);
         $currency = $this->currencyResolver->resolve($request);
@@ -52,10 +57,19 @@ class CheckoutController extends Controller
         }
 
         $hasPhysical  = $items->contains(fn ($i) => $i['item_type'] === 'physical');
+        $allPhysical  = $items->every(fn ($i) => $i['item_type'] === 'physical');
         $subtotal     = $this->cartService->getTotal($cookieId, $user , $currency);
         $shippingCost = 0;
         $shippingZone = null;
         $usedAddress  = null;
+
+        if ($request->payment_method === 'cash') {
+            try {
+                $this->purchaseService->assertCashOnDeliveryAllowed($items, $shippingZone, $user);
+            } catch (ValidationException $e) {
+                return $this->errorApi($e->validator->errors()->first(), 422);
+            }
+        }
 
         if ($hasPhysical) {
             if ($request->filled('shipping_zone_id')) {
@@ -97,7 +111,14 @@ class CheckoutController extends Controller
             ];
         }
 
-        $total = $subtotal + $shippingCost - $discount;
+        $insideEgypt   = $this->locationService->isInsideEgypt($user, $shippingZone);
+        $codEligible   = $allPhysical && $insideEgypt;
+
+        $paymentFee = $request->filled('payment_method')
+            ? $this->purchaseService->calculatePaymentFee($request->payment_method)
+            : 0;
+
+        $total = $subtotal + $shippingCost - $discount + $paymentFee;
 
         return $this->successApi([
             'items'        => $items,
@@ -115,6 +136,8 @@ class CheckoutController extends Controller
             ],
             'coupon'       => $couponPreview,
             'discount'     => $discount,
+            'payment_fee'    => $paymentFee,
+            'cod_eligible'   => $codEligible,
             'total'        => $total,
             'has_physical' => $hasPhysical,
         ], 'Order preview');
@@ -122,6 +145,7 @@ class CheckoutController extends Controller
 
     public function checkout(CheckoutRequest $request)
     {
+        /** @var \App\Models\User $user */
         $user     = auth('user-api')->user();
         $cookieId = $this->cartService->getOrCreateCookieId($request);
         $currency = $this->currencyResolver->resolve($request);
@@ -145,9 +169,19 @@ class CheckoutController extends Controller
 
             abort_unless($address->user_id === $user->id, 403, 'Unauthorized address.');
 
+            $shippingZone = $address->zone;
             $shippingCost = $currency === 'USD' ? (float) ($address->zone->cost_usd ?? $address->zone->cost) : (float) $address->zone->cost;
             $shippingAddressId = $address->id;
         }
+
+        if ($request->payment_method === 'cash') {
+            try {
+                $this->purchaseService->assertCashOnDeliveryAllowed($items, $shippingZone, $user);
+            } catch (ValidationException $e) {
+                return $this->errorApi($e->validator->errors()->first(), 422);
+            }
+        }
+
 
         $subtotal = $this->cartService->getTotal($cookieId, $user , $currency);
         $discount = 0;
@@ -158,10 +192,13 @@ class CheckoutController extends Controller
             $discount = $this->couponService->calculateDiscount($coupon, $subtotal , $currency);
         }
 
-        $total = $subtotal + $shippingCost - $discount;
+        $paymentFee = $this->purchaseService->calculatePaymentFee($request->payment_method);
+
+
+        $total = $subtotal + $shippingCost - $discount + $paymentFee;
 
         $idempotencyKey = $this->purchaseService->buildIdempotencyKey(
-            $user->id, $items, $subtotal, $shippingCost, $discount , $currency
+            $user->id, $items, $subtotal, $shippingCost, $discount , $currency , $request->payment_method
         );
 
         $existingOrder = Order::where('idempotency_key', $idempotencyKey)
@@ -171,6 +208,19 @@ class CheckoutController extends Controller
         if ($existingOrder) {
             if ($existingOrder->payment_status === 'paid') {
                 return $this->errorApi('This order has already been paid.', 422);
+            }
+
+            if ($existingOrder->payment_method === 'cash') {
+                return $this->successApi([
+                    'order_number' => $existingOrder->order_number,
+                    'subtotal'     => $subtotal,
+                    'shipping'     => $shippingCost,
+                    'discount'     => $discount,
+                    'payment_fee'  => $existingOrder->payment_fee,
+                    'total'        => $existingOrder->total,
+                    'status'       => 'pending',
+                    'resumed'      => true,
+                ], 'Order pending, pay on delivery');
             }
 
             $existingPayment = $existingOrder->payments()
@@ -194,6 +244,7 @@ class CheckoutController extends Controller
                 'subtotal'     => $subtotal,
                 'shipping'     => $shippingCost,
                 'discount'     => $discount,
+                'payment_fee'  => $existingOrder->payment_fee,
                 'total'        => $total,
                 'payment_url'  => $paymentUrl,
                 'status'       => 'pending',
@@ -212,13 +263,29 @@ class CheckoutController extends Controller
             currency:          $currency,
             shippingAddressId: $shippingAddressId,
             idempotencyKey:    $idempotencyKey,
+            paymentFee:  $paymentFee,
         );
 
         if ($coupon) {
             $this->couponService->recordUsage($coupon, $order->id, $user->id, $subtotal, $discount);
         }
 
-        $payment    = $this->purchaseService->createPendingPayment($order, $user, $request->payment_method);
+        $payment  = $this->purchaseService->createPendingPayment($order, $user, $request->payment_method);
+
+        if ($request->payment_method === 'cash') {
+            return $this->successApi([
+                'order_number' => $order->order_number,
+                'subtotal'     => $subtotal,
+                'shipping'     => $shippingCost,
+                'discount'     => $discount,
+                'payment_fee'  => $paymentFee,
+                'total'        => $total,
+                'currency'     => $currency,
+                'status'       => 'pending',
+                'resumed'      => false,
+            ], 'Order placed, pay on delivery');
+        }
+
         $paymentUrl = $this->purchaseService->initiatePaymobPayment($payment, $request, $request->payment_method);
 
         return $this->successApi([
@@ -226,6 +293,7 @@ class CheckoutController extends Controller
             'subtotal'    => $subtotal,
             'shipping'    => $shippingCost,
             'discount'    => $discount,
+            'payment_fee' => $paymentFee,
             'total'       => $total,
             'currency'    => $currency,
             'payment_url' => $paymentUrl,

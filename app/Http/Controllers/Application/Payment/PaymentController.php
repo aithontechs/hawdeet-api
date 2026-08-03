@@ -9,6 +9,7 @@ use App\Notifications\PaymentSuccessNotification;
 use App\Services\Cart\CartService;
 use App\Services\Payment\PaymobService;
 use App\Services\Purchase\BookAccessGrantService;
+use App\Services\Purchase\BookPurchaseService;
 use App\Services\Subscription\SubscriptionService;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
@@ -25,6 +26,7 @@ class PaymentController extends Controller
         private BookAccessGrantService $grantService,
         private SubscriptionService    $subscriptionService,
         private CartService            $cartService,
+        private BookPurchaseService $purchaseService
     ) {}
 
     public function webhook(Request $request)
@@ -150,7 +152,7 @@ class PaymentController extends Controller
         if (!$order || $order->payment_status === 'paid') return;
 
         DB::transaction(function () use ($order) {
-            $this->deductPhysicalStock($order);
+            $this->purchaseService->deductPhysicalStock($order);
             $this->grantService->grantBookAccess($order);
             $this->cartService->clearCart(null, $order->user_id);
             $order->update(['payment_status' => 'paid', 'paid_at' => now()]);
@@ -185,36 +187,6 @@ class PaymentController extends Controller
         Log::info("Subscription #{$subscription->id} activated via Paymob webhook.");
     }
 
-    private function deductPhysicalStock(Order $order): void
-    {
-        $physicalItems = $order->items()->where('item_type', 'physical')->get();
-
-        foreach ($physicalItems as $item) {
-            $column = $item->cover_type === 'hard_cover'
-                ? 'physical_hard_cover_stock'
-                : 'physical_stock';
-
-            $affected = DB::table('books')
-                ->where('id', $item->book_id)
-                ->where($column, '>=', $item->quantity)
-                ->decrement($column, $item->quantity);
-
-            if (!$affected) {
-                DB::table('books')->where('id', $item->book_id)->decrement($column, 0);
-
-                Log::critical("OVERSELL: Stock deduction failed for paid order. Manual intervention required.", [
-                    'order_id'   => $order->id,
-                    'book_id'    => $item->book_id,
-                    'cover_type' => $item->cover_type,
-                    'quantity'   => $item->quantity,
-                ]);
-
-
-            }
-        }
-    }
-
-
     private function handleCallbackSuccess(string $platform, Payment $payment, string $message)
     {
         if ($platform === 'web') {
@@ -243,6 +215,6 @@ class PaymentController extends Controller
     private function extractPlatform(string $merchantOrderId): string
     {
         $parts = explode('-', $merchantOrderId);
-        return $parts[2] ?? 'mobile'; 
+        return $parts[2] ?? 'mobile';
     }
 }

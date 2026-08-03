@@ -12,7 +12,7 @@ class CheckoutRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'payment_method'    => ['required', 'in:card,wallet'],
+            'payment_method'    => ['required', 'in:card,wallet,cash'],
             'coupon_code'       => ['nullable', 'string'],
 
             'first_name' => ['nullable', 'string', 'max:100'],

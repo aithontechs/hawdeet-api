@@ -15,6 +15,7 @@ class Order extends Model
         'order_number',
         'subtotal',
         'discount',
+        'payment_fee',
         'total',
         'payment_method',
         'payment_status',
@@ -31,6 +32,7 @@ class Order extends Model
     protected $casts = [
         'subtotal'       => 'decimal:2',
         'discount'       => 'decimal:2',
+        'payment_fee'    => 'decimal:2',
         'total'          => 'decimal:2',
         'paid_at'        => 'datetime',
     ];
