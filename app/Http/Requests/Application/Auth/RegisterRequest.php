@@ -5,6 +5,8 @@ namespace App\Http\Requests\Application\Auth;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 use Propaganistas\LaravelPhone\Rules\Phone;
+use libphonenumber\PhoneNumberFormat;
+use libphonenumber\PhoneNumberUtil;
 
 class RegisterRequest extends FormRequest
 {
@@ -53,5 +55,30 @@ class RegisterRequest extends FormRequest
             'password.numbers' => 'كلمة المرور يجب أن تحتوي على رقم واحد على الأقل.',
             'password.symbols' => 'كلمة المرور يجب أن تحتوي على رمز خاص واحد على الأقل.',
         ];
+    }
+
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            if (! $this->filled('phone')) {
+                return;
+            }
+
+            $phoneUtil = PhoneNumberUtil::getInstance();
+
+            try {
+                $number = $phoneUtil->parse($this->phone, null);
+
+                $e164 = $phoneUtil->format($number, PhoneNumberFormat::E164);
+
+                if ($this->phone !== $e164) {
+                    $validator->errors()->add(
+                        'phone',
+                        'يرجى إدخال رقم الهاتف بالصيغة الدولية الصحيحة (E.164).'
+                    );
+                }
+            } catch (\Exception $e) {
+            }
+        });
     }
 }
