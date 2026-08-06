@@ -74,7 +74,6 @@ class UserController extends Controller
         if (!$user->trashed()) {
             return $this->errorApi('User is not deleted', 422);
         }
-
         $user->restore();
 
         return $this->successApi($user, 'User restored successfully');
