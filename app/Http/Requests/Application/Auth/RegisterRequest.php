@@ -57,28 +57,4 @@ class RegisterRequest extends FormRequest
         ];
     }
 
-    public function withValidator($validator)
-    {
-        $validator->after(function ($validator) {
-            if (! $this->filled('phone')) {
-                return;
-            }
-
-            $phoneUtil = PhoneNumberUtil::getInstance();
-
-            try {
-                $number = $phoneUtil->parse($this->phone, null);
-
-                $e164 = $phoneUtil->format($number, PhoneNumberFormat::E164);
-
-                if ($this->phone !== $e164) {
-                    $validator->errors()->add(
-                        'phone',
-                        'يرجى إدخال رقم الهاتف بالصيغة الدولية الصحيحة (E.164).'
-                    );
-                }
-            } catch (\Exception $e) {
-            }
-        });
-    }
 }
