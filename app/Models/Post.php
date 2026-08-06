@@ -30,7 +30,7 @@ class Post extends Model
     // Author = User(author) or Admin
     public function postable()
     {
-        return $this->morphTo();
+        return $this->morphTo()->withTrashed();
     }
 
     public function comments()
