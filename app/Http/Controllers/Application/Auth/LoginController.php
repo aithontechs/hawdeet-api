@@ -56,6 +56,9 @@ class LoginController extends Controller
 
     protected function respondWithToken($token)
     {
+        // $user = auth('user-api')->user();
+        // $user->can_buy = !is_null($user->phone);
+
         return [
             'access_token' => $token,
             'token_type' => 'bearer',

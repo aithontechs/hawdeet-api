@@ -47,6 +47,8 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
         'password' => 'hashed'
     ];
 
+    protected $appends = ['can_buy'];
+
     // public $appends = ['avatar_url'];
 
 
@@ -74,6 +76,10 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
         return $query;
     }
 
+    public function getCanBuyAttribute(): bool
+    {
+        return filled($this->phone);
+    }
 
     public function following()
     {

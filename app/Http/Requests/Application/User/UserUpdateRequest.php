@@ -17,7 +17,7 @@ class UserUpdateRequest extends FormRequest
     {
         return [
             'name' => 'sometimes|string|max:30|min:4',
-            // 'phone' => ['sometimes', (new Phone())->international(),Rule::unique('users', 'phone')->ignore(auth()->id()),],
+            'phone' => ['sometimes', (new Phone())->international(),Rule::unique('users', 'phone')->ignore(auth()->id()),],
             'birth_date' => ['sometimes', 'date' , 'before_or_equal:' . now()->subYears(8)->toDateString(), ],
             'avatar_url' => 'sometimes|image|max:5120',
             'bio' => 'sometimes|string|max:1000',

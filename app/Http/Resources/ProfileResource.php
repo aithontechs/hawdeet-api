@@ -28,6 +28,7 @@ class ProfileResource extends JsonResource
             'is_active'  => $this->is_active,
             'followers_count' => $this->followers_count,
             'following_count' => $this->following_count,
+            'can_buy' => filled($this->phone),
 
 
             'subscription' => $this->whenLoaded('subscriptions',
