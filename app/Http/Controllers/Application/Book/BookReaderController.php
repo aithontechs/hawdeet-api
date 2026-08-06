@@ -38,10 +38,13 @@ class BookReaderController extends Controller
 
         $user = auth('user-api')->user();
 
-        if ($book->is_subscription_included && !$book->is_free) {
-            $isPurchased = in_array($book->id, $this->userBookService->getUserBookIds($user));
+        $isAlreadyGranted = in_array($book->id, $this->userBookService->getUserBookIds($user));
 
-            if (!$isPurchased && $this->userBookService->hasActiveSubscription($user)) {
+        if (!$isAlreadyGranted) {
+            if ($book->is_free) {
+                $this->userBookService->recordFreeAccess($user, $book);
+            }
+            elseif ($book->is_subscription_included && $this->userBookService->hasActiveSubscription($user)) {
                 $this->userBookService->recordSubscriptionAccess($user, $book);
             }
         }

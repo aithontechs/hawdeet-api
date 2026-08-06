@@ -61,6 +61,23 @@ class UserBookService
         );
     }
 
+    public function recordFreeAccess(User $user, Book $book): void
+    {
+        UserBook::firstOrCreate(
+            [
+                'user_id'     => $user->id,
+                'book_id'     => $book->id,
+                'access_type' => 'free',
+            ],
+            [
+                'user_subscription_id' => null,
+                'expires_at'           => null,
+                'granted_at'           => now(),
+            ]
+        );
+        $this->clearCache($user->id);
+    }
+
     public function clearCache(int $userId): void
     {
         Cache::forget("user_books:{$userId}");
