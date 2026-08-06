@@ -8,6 +8,7 @@ use App\Http\Requests\Dashboard\User\UserRequest;
 use App\Models\User;
 use App\Traits\ResponseApi;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 
 class UserController extends Controller
@@ -56,7 +57,13 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
-        $user->delete();
+        DB::transaction(function () use ($user) {
+            $user->update([
+                'is_active' => false,
+            ]);
+
+            $user->delete();
+        });
         return $this->successApi(null ,'User deleted successfully') ;
     }
 
@@ -71,10 +78,17 @@ class UserController extends Controller
     {
         $user = User::withTrashed()->findOrFail($id);
         $this->authorize('restore', $user);
-        if (!$user->trashed()) {
+        if (! $user->trashed()) {
             return $this->errorApi('User is not deleted', 422);
         }
-        $user->restore();
+
+        DB::transaction(function () use ($user) {
+            $user->restore();
+
+            $user->update([
+                'is_active' => true,
+            ]);
+        });
 
         return $this->successApi($user, 'User restored successfully');
     }
