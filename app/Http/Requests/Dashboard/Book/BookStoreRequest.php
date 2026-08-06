@@ -24,7 +24,7 @@ class BookStoreRequest extends FormRequest
             'title'       => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
             'type'        => ['required', 'in:digital,physical,both'],
-            'cover'       => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2120'],
+            'cover'       => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'author_id'   => ['required', 'exists:users,id'],
             'age_min'     => ['required', 'integer', 'min:0'],
             'is_free'     => ['boolean'],
