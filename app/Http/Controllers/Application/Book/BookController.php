@@ -122,6 +122,9 @@ class BookController extends Controller
         $data['description'] = $book->description;
         $data['currency'] = $currency ;
         $data['total_sales'] = $book->totalSalesFor($data['type']);
+        $data['total_pages'] = $book->total_pages;
+        $data['size_book'] = $book->size_book;
+        $data['release_year'] = $book->release_year;
         return $this->successApi($data, 'Book details fetched successfully');
     }
 
