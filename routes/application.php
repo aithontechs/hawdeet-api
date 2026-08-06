@@ -153,6 +153,7 @@ Route::group(['prefix'=> 'v1'] , function () {
             Route::put('/profile', [UserController::class ,'updateProfile']) ;
             Route::post('/profile/update', [UserController::class, 'updateProfileForApp']);
             Route::patch('change-password', [ChangePasswordController::class, 'update']) ;
+            Route::delete('delete-account', [UserController::class, 'deleteAccount']) ;
         });
 
         Route::get('user/library', [BookReadingProgressController::class, 'library']);

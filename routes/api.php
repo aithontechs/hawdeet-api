@@ -45,6 +45,7 @@ Route::group(['prefix'=> 'v1/admin'], function () {
         Route::get('me/access', [PermissionController::class, 'getPermissionsForUser'] );
 
         Route::get('users/export', [UserController::class, 'export']);
+        Route::post('/users/{id}/restore', [UserController::class, 'restore']);
         Route::apiResource('users' , UserController::class) ;
 
         Route::get('authors/export', [AuthorController::class, 'export']);

@@ -13,6 +13,7 @@ use App\Services\Shipping\ShippingService;
 use App\Services\Storage\StorageService;
 use App\Services\User\ProfileService;
 use App\Traits\ResponseApi;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class UserController extends Controller
 {
@@ -28,6 +29,7 @@ class UserController extends Controller
     // MY PROFILE
     public function profile()
     {
+        /** @var User $user */
         $user = auth()->user();
         $stats = $this->profileService->getProfileStats($user);
 
@@ -68,6 +70,7 @@ class UserController extends Controller
 
     public function updateProfile(UserUpdateRequest $request)
     {
+        /** @var User $user */
         $user = auth()->user();
 
         $data = $request->validated();
@@ -87,6 +90,7 @@ class UserController extends Controller
 
     public function updateProfileForApp(UserUpdateRequest $request)
     {
+        /** @var User $user */
         $user = auth()->user();
         $data = $request->validated();
 
@@ -108,5 +112,14 @@ class UserController extends Controller
         $this->shippingService->clearCache() ;
 
         return $this->successApi($user, 'Profile updated successfully');
+    }
+
+    public function deleteAccount()
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        $user->delete();
+        JWTAuth::invalidate(JWTAuth::getToken());
+        return $this->successApi(null, 'Account deleted successfully');
     }
 }

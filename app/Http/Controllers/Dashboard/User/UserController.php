@@ -21,7 +21,7 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
-        $users = User::query()->where('is_author' , 0)->latest()->search($request->search)
+        $users = User::withTrashed()->where('is_author' , 0)->latest()->search($request->search)
             ->when($request->filled('plan_id'), function ($query) use ($request) {
                 $query->whereHas('subscriptions', function ($q) use ($request) {
                     $q->where('plan_id', $request->plan_id)
@@ -67,4 +67,16 @@ class UserController extends Controller
         return Excel::download(new UsersExport($request->search), $fileName);
     }
 
+    public function restore($id)
+    {
+        $user = User::withTrashed()->findOrFail($id);
+        $this->authorize('restore', $user);
+        if (!$user->trashed()) {
+            return $this->errorApi('User is not deleted', 422);
+        }
+
+        $user->restore();
+
+        return $this->successApi($user, 'User restored successfully');
+    }
 }

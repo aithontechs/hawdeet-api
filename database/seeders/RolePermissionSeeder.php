@@ -29,6 +29,8 @@ class RolePermissionSeeder extends Seeder
             ['name' => 'Create User', 'permission' => 'user.create'],
             ['name' => 'Update User', 'permission' => 'user.update'],
             ['name' => 'Delete User', 'permission' => 'user.delete'],
+            ['name' => 'Restore User', 'permission' => 'user.restore'],
+
 
             ['name' => 'View Categories', 'permission' => 'category.view'],
             ['name' => 'Show Category', 'permission' => 'category.show'],
